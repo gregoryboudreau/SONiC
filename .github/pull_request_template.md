@@ -1,5 +1,5 @@
 <!--
-     Feature HLDs: Please follow SONiC community [HLD template](https://wwwin-github.cisco.com/whitebox/SONiC/blob/master/doc/hld_template.md)
+     Feature HLDs: Please follow SONiC community [HLD template](https://wwwin-github.cisco.com/whitebox/SONiC/blob/master/doc/guidelines/hld_template.md)
      Testplan HLDs: Check out this community testplan for reference - [PAC Testplan](https://github.com/sonic-net/sonic-mgmt/blob/master/docs/testplan/pac/Port_Access_Control.md
 
      Please provide the following information:

@@ -13,6 +13,7 @@ Handling of the recorded fault and logging into OBFL
 | 1.2 | 05/10/2024 | Rajan Narayanan | Reorganized the document using this template document |
 | 1.3 | 05/30/2024 | Rajan Narayanan | Included fault policy section and addressed review comments |
 | 1.4 | 02/10/2025 | Nanma Purushotam | Added automation test suite and T2 chassis integration validation results |
+| 1.5 | 02/18/2026 | Keith Lu | Improvement |
 
 ## Table of Contents
 
@@ -23,20 +24,26 @@ Handling of the recorded fault and logging into OBFL
     - [2.2.1 Sensor Fault monitoring](#sensor-fault-monitoring)
     - [2.2.2 Component fault monitor](#component-fault-monitor)
     - [2.2.3 Fault Detection Schema](#fault-detection-schema)
+    - [2.2.4 Fault Filtering, Validation, and Duplicate Severity Tracking](#fault-filtering-validation-and-duplicate-severity-tracking)
   - [2.3 Fault Handler Service](#fault-handler-service)
-    - [2.3.1 Fault data flow](#fault-data-flow)
-    - [2.3.2 Fault Handler Schema](#fault-handler-schema)
-    - [2.3.3 Fault Policy](#fault-policy)
-  - [2.4 Restart](#restart)
-  - [2.5 Power Cycle](#power-cycle)
-  - [2.6 OBFL](#obfl)
-    - [2.6.1 Reboot Info](#reboot-info)
-    - [2.6.2 Alarms](#alarms)
-    - [2.6.3 Inventory](#inventory)
-    - [2.6.4 FPD Activity](#fpd-activity)
-- [3 Automation Suite](#3-automation-suite)
-  - [T2 Chassis Integration – Fault Monitoring Services](#t2-chassis-integration--fault-monitoring-services)
-- [4 References](#references)
+    - [2.3.1 Enhanced Policy Validation and Error Handling](#enhanced-policy-validation-and-error-handling)
+    - [2.3.2 Fault data flow](#fault-data-flow)
+    - [2.3.3 Fault Handler Schema](#fault-handler-schema)
+    - [2.3.4 Fault Policy](#fault-policy)
+  - [2.4 Modular Utility Functions](#modular-utility-functions)
+  - [2.5 Database Connectivity and Resilience](#database-connectivity-and-resilience)
+  - [2.6 Restart](#restart)
+  - [2.7 Power Cycle](#power-cycle)
+  - [2.8 OBFL](#obfl)
+    - [2.8.1 Reboot Info](#reboot-info)
+    - [2.8.2 Alarms](#alarms)
+    - [2.8.3 Inventory](#inventory)
+    - [2.8.4 FPD Activity](#fpd-activity)
+- [3 Performance and Code Quality Requirements](#3-performance-and-code-quality-requirements)
+    - [3.1 Metrics](#metrics)
+- [4 Automation Suite](#4-automation-suite)
+    - [4.1 T2 Chassis Integration – Fault Monitoring Services](#t2-chassis-integration--fault-monitoring-services)
+- [5 References](#5-references)
 
 ## List of Tables
 
@@ -65,12 +72,13 @@ Sonic does system health monitoring in a device agnostic way, which limits the c
 | 2.2.1 | Sensor fault monitor |  |  | Platform script to monitor sensor faults |
 | 2.2.2 | Component fault monitor |  |  | Platform script to monitor faults using data file based on FaultDetectionSchema |
 | 2.2.3 | FaultDetectionSchema |  |  | Schema to specify the mechanism to detect a fault |
-| 2.2.4 | Fault Handler |  |  | Fault handler Daemon |
-| 2.2.5 | Fault Policy |  |  | Fault Policy data directing the handler |
-| 2.2.6 | FaulthandleSchema |  |  | Schema to raise the fault with relevant information |
-| 2.3 | OBFL |  |  | Onboard flash device instantiation |
-| 2.3.1 | Inventory and Reboot |  |  | Tracking OIR of Fruable Objects |
-| 2.3.4 | FPD Upgrade |  |  | Tracking FPD upgrades |
+| 2.2.4 | Fault filtering, validation, duplicate tracking |  |  | Improved fault quality and duplicate suppression |
+| 2.3.1 | Enhanced policy validation and error handling |  |  | Fault handler robustness improvements |
+| 2.4 | Modular utility functions |  |  | Shared utilities for fault data and helpers |
+| 2.5 | Database connectivity and resilience |  |  | Retry, reconnection, and startup verification |
+| 2.6 | Restart handling |  |  | Fault handling behavior during service restart |
+| 2.7 | Power cycle handling |  |  | Fault handling behavior across power cycles |
+| 2.8 | OBFL |  |  | Onboard flash logging and tracking |
 
 **Table 1: Functional Requirements Summary**
 
@@ -165,6 +173,66 @@ Every platform should provide information about the components that need to be m
 - If there are platform specific scripts that need to be staged, it will be handled as part of platform setup. It will be captured later (needs some more investigation)
 - Event Alarm Framework infra is not available for fault propagation. Once the framework is in place, fault reporting will switch over to the alarm event framework.
 
+#### 2.2.4 Fault Filtering, Validation, and Duplicate Severity Tracking
+
+Fault monitoring applies strict filtering, defensive validation, and duplicate-aware state tracking before publishing events.
+
+**Detection and validation flow**
+
+```
+IF (threshold_exceeded AND warning_status == 'true') THEN
+    validate sensor payload
+    IF valid THEN
+        evaluate duplicate/severity state
+        publish fault event
+    END IF
+END IF
+```
+
+Validation includes:
+- Example sensor payload (`TEMPERATURE_INFO|PSU1 HSNK_Temp`):
+
+```
+sonic-db-cli STATE_DB HGETALL 'TEMPERATURE_INFO|PSU1 HSNK_Temp'
+"TEMPERATURE_INFO|PSU1 HSNK_Temp": {
+    "temperature": "57.0",
+    "minimum_temperature": "56.0",
+    "maximum_temperature": "58.0",
+    "high_threshold": "85.0",
+    "low_threshold": "-5.0",
+    "warning_status": "False",
+    "critical_high_threshold": "90.0",
+    "critical_low_threshold": "-10.0",
+    "is_replaceable": "False",
+    "timestamp": "20250821 19:55:37"
+}
+```
+
+- any N/A or missing value handling with state tracking
+- numeric conversion and sanity bounds checks
+- threshold ordering checks (critical_high >= high >= low >= critical_low)
+- recovery logging when a sensor returns from invalid/N/A to valid state
+
+**Duplicate and severity handling**
+
+```
+IF sensor_key NOT in fault_cache THEN
+    report new fault
+ELSE IF current_severity != cached_severity THEN
+    report severity transition (e.g., MAJOR -> CRITICAL)
+ELSE
+    skip duplicate
+END IF
+```
+
+This model preserves meaningful state transitions while suppressing unchanged repeats.
+
+**Operational impact**
+- reduces false positives by requiring dual condition confirmation
+- avoids malformed-data crashes through defensive validation
+- prevents redundant OBFL/log writes for unchanged faults
+- preserves fault history accuracy for escalation and recovery events
+
 ### 2.3 Fault Handler Service
 
 Fault handler service runs as daemon in the host. The primary functional requirement is to scan for Fault Information in StateDB and act on it. It is assisted with a Fault Policy table that defines handling mechanism.
@@ -182,7 +250,40 @@ Every PID provides a fault policy table that gets referred to during fault handl
 - Reload
 - shutdown
 
-#### 2.3.1 Fault data flow
+#### 2.3.1 Enhanced Policy Validation and Error Handling
+
+Fault handling logic validates policy and payload before action execution, and degrades gracefully on non-fatal failures.
+
+```
+IF fault_policy NOT loaded THEN
+    log error and skip handling
+    RETURN
+END IF
+
+IF fault already exists with same severity THEN
+    log info and skip duplicate
+    RETURN
+END IF
+
+IF comment field missing THEN
+    auto-generate comment from FaultDataManager
+END IF
+
+TRY
+    log alarm to OBFL
+CATCH error
+    log error and continue processing
+END TRY
+```
+
+Key behavior:
+- validates fault-policy availability and rule structure before action evaluation
+- suppresses handler-level duplicates as an additional protection layer
+- auto-completes missing required fields when deterministic defaults are available
+- isolates OBFL exceptions to avoid service-wide interruption
+- emits actionable logs for troubleshooting and auditability
+
+#### 2.3.2 Fault data flow
 
 - Monitor service periodically tracks the list of components specified on the platform data file
 - Anything outside of expected behavior is reported as fault
@@ -191,7 +292,7 @@ Every PID provides a fault policy table that gets referred to during fault handl
 - Fault handling service gets notified whenever the faults are raised and cleared
 - Every fault is handled based on the recommended action in fault policy table.
 
-#### 2.3.2 Fault Handler Schema
+#### 2.3.3 Fault Handler Schema
 
 All the faults reported to the DB should be in line with the schema defined below
 
@@ -201,7 +302,7 @@ All the faults reported to the DB should be in line with the schema defined belo
 - text: Producer comments
 - time-created: Timestamp when the data is produced
 
-#### 2.3.3 Fault Policy
+#### 2.3.4 Fault Policy
 
 Fault policy table provides the flexibility to handle faults in a platform specific way. By default, there are no actions. But the platform can set appropriate actions for the faults by staging fault_policy.json under the platform path /usr/share/sonic/device/\<platform\>/fault_policy.json
 
@@ -308,17 +409,62 @@ Name of the entity raising the alarm. It's optional.
 
 This option is used only to indicate the deviation of action for certain resources (i.e.) if the default action for the alarm type "TEMPERATURE EXCEED" with severity "CRITICAL" is "shutdown", then use the override option to take a different action for the same alarm type and sev from different resources
 
-### 2.4 Restart
+### 2.4 Modular Utility Functions
+
+The implementation uses a shared utility layer to centralize fault data preparation, mapping, and database helpers.
+
+```
+FaultDataManager:
+    - prepare_fault_data(component, data, severity, action)
+    - generate_sensor_comment(component, data)
+    - get_type_id_from_component(component)
+
+Database helpers:
+    - verify_redis_connectivity(max_attempts, retry_delay, timeout)
+    - reconnect_db()
+```
+
+Design outcomes:
+- one canonical path for fault payload construction across monitor and handler
+- lower code duplication and simpler maintenance for schema updates
+- stronger unit-testability for utility-level functions
+- consistent type-id mapping and comment formatting across components
+
+### 2.5 Database Connectivity and Resilience
+
+Database operations use configurable retries, startup verification, and controlled reconnection loops.
+
+```
+Connection verification:
+TRY up to max_attempts:
+    ping database
+    if success -> connected
+    else wait retry_delay and retry
+
+Reconnection:
+REPEAT until success:
+    connect to StateDB
+    if success -> return connections
+    else log error, wait retry_delay, retry
+```
+
+Operational behavior:
+- retry parameters are configurable for different deployment profiles
+- monitoring starts only after connectivity checks pass
+- transient Redis faults are recovered automatically without process crash
+- reconnect logic maintains service continuity during DB restarts
+
+### 2.6 Restart
 
 When the fault handling service restarts, it does re-sync to the current fault info table. There are conditions which lead to repeated action during re-sync (i.e.) an event raised with action as reboot might trigger another reboot. Unless the event is cleared in the following boot, the same action leads to reboot in loop. To avoid this, the fault handler service marks the timestamp of the last handled fault in some persistent manner. Whenever the service re-syncs to the current fault in the table, it takes actions for the faults that are raised after restart/reboot based on the cached timestamp.
 
 Every restart/reboot will be marked in the OBFL flash.
 
-### 2.5 Power Cycle
+### 2.7 Power Cycle
 
 This is like restart, but this time all the faults will be handled afresh irrespective of the status of the faults recorded in OBFL.
 
-### 2.6 OBFL
+### 2.8 OBFL
 
 OBFL is a flash component to record critical information during system operations that can be used for analysis during RMA. During boot flash the file system gets mounted if not already mounted.
 
@@ -334,7 +480,7 @@ Platform monitor service tracks alarms, reboot history and Inventory. Also provi
 - Inventory tracking
 - NPU Fault
 
-#### 2.6.1 Reboot Info
+#### 2.8.1 Reboot Info
 
 This file tracks the reboot information of the system. It should track the power cycle, user reboot and watchdog reboot.
 
@@ -345,13 +491,13 @@ Chassis         Power Loss      N/A                                     N/A
 Chassis         Reboot          Fri 19 Apr 2024 02:49:37 PM UTC         cisco
 ```
 
-#### 2.6.2 Alarms
+#### 2.8.2 Alarms
 
 Alarms are generated by fault handler daemon and captured in flash.
 
 Explained in fault handling service
 
-#### 2.6.3 Inventory
+#### 2.8.3 Inventory
 
 When the system comes online it captures all the Inventory information. Post that every OIR is tracked and recorded with IDPROM information.
 
@@ -378,12 +524,34 @@ When the system comes online it captures all the Inventory information. Post tha
   SN              : NCV2505Q08Y
 ```
 
-#### 2.6.4 FPD Activity
+#### 2.8.4 FPD Activity
 
 FPD activity is not tracked using platform monitor service. Instead, it will be recorded from the source while the upgrade action takes place.
 
 
-## 3. T2 Chassis Integration – Fault Monitoring Services
+## 3 Performance and Code Quality Requirements
+
+This section summarizes key performance, quality, and reliability outcomes of the current fault management design.
+
+### **3.1 Metrics**
+
+#### **Integrated Performance and Reliability Controls**
+- **Duplicate prevention**: Defense-in-depth checks at both monitor and handler levels prevent repeated alarms.
+- **Batch validation**: Centralized `_validate_sensor_data()` removes redundant per-sensor validation calls.
+- **Efficient filtering**: AND gating (`threshold_exceeded` and `warning_status`) suppresses false positives before DB updates.
+- **State tracking**: `logged_states` avoids redundant validation/logging while preserving transition-aware behavior.
+- **Exception resilience**: Comprehensive exception handling avoids unhandled service crashes.
+- **DB reconnect handling**: Automatic recovery from temporary database disconnections.
+- **Smarter caching**: Duplicate detection prevents re-processing identical faults and reduces database/OBFL I/O.
+- **Graceful degradation**: Monitoring continues even when OBFL logging fails.
+
+---
+
+
+## 4 Automation Suite
+
+<a id="t2-chassis-integration--fault-monitoring-services"></a>
+### 4.1 T2 Chassis Integration – Fault Monitoring Services
 
 Fault monitoring feature will be supported on T2 Chassis architecture. This requires the feature specific services to be enabled on the Chassis RP and Line cards. Chassis cards run in multi-asic architecture. This feature does not require any multi-asic awareness. The fault monitoring framework services will be responsible for monitoring sensor states and ensuring system health is continuously tracked.
 
@@ -398,7 +566,7 @@ Fault monitoring feature will be supported on T2 Chassis architecture. This requ
 - Ensures uniform fault monitoring across all namespaces without requiring service duplication.
 
 
-## 4 Automation Suite
+### Test Suite Coverage
 
 Test suites will be developed for sonic-mgmt to cover full functionality and unit testing for single form factor and chassis systems. Test suite will cover all
 
@@ -501,8 +669,7 @@ This section list few observation from the current design.
     show platform obfl alarms
     ```
 
-
-## 4 References
+## 5 References
 
 - https://github.com/sonic-net/SONiC/blob/master/doc/system_health_monitoring/system-health-HLD.md
 - https://github.com/sonic-net/SONiC/blob/master/doc/event-alarm-framework/event-alarm-framework.md

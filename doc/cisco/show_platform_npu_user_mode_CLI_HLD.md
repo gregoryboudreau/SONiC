@@ -27,6 +27,7 @@
 | Version | Date       | Author    | Description                          |
 |---------|------------|-----------|--------------------------------------|
 | 0.1     | 2025-03-01 | Anand Mehra (anamehra)  | Initial HLD for user mode CLI |
+| 0.2     | 2026-03-22 | Anand Mehra (anamehra)  | Updated CLI list and RP to LC execution behavior |
 
 ---
 
@@ -69,6 +70,10 @@ This document describes the high-level design for enabling a subset of **show pl
 - Reliance on the existing Python/dshell path vs. gRPC.
 
 Only commands that are highly used, safe, and have acceptable runtime are enabled for user mode. Commands that still use the Python infrastructure and can cause SAI call delays remain restricted to privileged users. This HLD defines the **infrastructure** for user-mode execution using the **recommended approach: two sockets** — a root socket (full command set, root only) and a user socket (allow-list only, chmod 0o666). Allow-listed CLIs connect to the user socket; all others use the root socket and require sudo. Adding further commands to the allow-list requires evaluation of runtime and data size; gRPC-based implementations do not by themselves guarantee safe execution if they pull large data from the SDK.
+
+On T2 chassis, where CLI execution on RP for LC npu commands is supported (202511 release onwards), the non-sudo access CLIs will use the RP-LC redis channel to execute the CLIs on LC with user level access. All other sudo access CLIs should use rexec.
+
+For any new CLI development, it is mandatory to set use_user_socket to True if the CLI is safe for non-sudo access, or False otherwise to keep sudo access only.
 
 ---
 
@@ -153,19 +158,38 @@ The change fits into the existing architecture as follows (**recommended approac
 
 The following dshell command names are on the allow-list. When the connecting client is a normal user (non-privileged), only these commands are executed; all have corresponding `show platform npu` CLIs:
 
-| Dshell command             | CLI (show platform npu ...)     |
-|----------------------------|----------------------------------|
-| `show_port_counters`       | port counters                    |
-| `show_next_hop_usage`      | next-hop usage                   |
-| `show_router_port_counters`| router port-counters             |
-| `show_trap`                | trap                             |
-| `show_globals`             | global                           |
-| `get_resource_usage`       | resource                         |
-| `show_mac_state`           | mac-state                        |
-| `show_npu_rx`              | rx ...                           |
-| `show_npu_tx`              | tx ...                           |
-| `show_npu_voq`             | voq ...                          |
-| `show_and_dump_capture`    | packet-capture (show/dump)       |
+| Dshell command | `show platform npu …` |
+|----------------|------------------------|
+| `show_port_entries` | `port entries` |
+| `show_port_counters` | `port counters` |
+| `show_next_hop_entries` | `next-hop entries` |
+| `show_next_hop_usage` | `next-hop usage` |
+| `show_router_entries` | `router entries` |
+| `show_router_ports` | `router ports` |
+| `show_router_details` | `router details` |
+| `show_route_table` | `router route-table` |
+| `show_prefix_map` | `router prefix-map` |
+| `show_router_port_counters` | `router port-counters` |
+| `show_ecmp` | `ecmp` |
+| `show_packet_path` / `show_packet_path_ipv6` | `packet-path` |
+| `show_trap` | `trap` |
+| `event_trap` | `event-trap` |
+| `show_and_dump_capture` | `packet-debug` → `capture` only |
+| `show_globals` | `global` |
+| `get_resource_usage` | `resource` |
+| `show_lpts` | `lpts` |
+| `show_npu_l3_interface` | `l3-interface` |
+| `show_temperatures` | `temperatures` |
+| `show_bfd_summary` | `bfd summary` |
+| `show_bfd_counter_stats` | `bfd counter` |
+| `show_histograms` | `histogram` |
+| `get_counters` | `counters` |
+| `oq_debug` | `oq-debug` |
+| `show_mac_state` | `mac-state` |
+| `show_npu_rx` | `rx …` |
+| `show_npu_tx` | `tx …` |
+| `show_npu_voq` | `voq …` |
+
 
 The following are **not** on the allow-list and require the client to be privileged (root or in the privileged group): port entries, router ports, event-trap, counters, oq-debug; as well as asic-errors, router details/entries, switch entries/ports, lag entries, techsupport, and other privileged-only subcommands.
 

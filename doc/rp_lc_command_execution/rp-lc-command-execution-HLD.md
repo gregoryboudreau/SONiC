@@ -422,9 +422,9 @@ The above examples correspond to platform npu counters command, similarly for al
 ### 5.1 Output Format:
 
 The "show platform npu ..." commands when executed from RP specifying location as a specific module or "all" is different from the current behavior of commands where they are independently executed on RP terminal or module terminal. For location "all", the command output would list outputs from all available modules:
-- "Output for Supervisor" (RP output)
-- "Output for LINE-CARD0" and its output
-- "Output for LINE-CARD1" and its output
+- "======= SUPERVISOR ========" (RP output)
+- "======= LINE-CARD0 ========" and its output
+- "======= LINE-CARD1 ========" and its output
 - etc.
 
 The below section captures different show output of specific command "sudo show platform npu counters" based on namespace and location as executed on RP as well as LC.
@@ -435,7 +435,8 @@ The following is show output of command of "show platform npu counters -n asic0 
 cisco@sfd-01:~$ 
 cisco@sfd-01:~$ sudo show platform npu counters -n asic0 -l LINE-CARD0
 
-Output for LINE-CARD0:
+======= LINE-CARD0 ========
+
 INFO  Total Forwarding lookup errors (Fwd-destination==20'h0 or DSP==0): packets = 7    , bytes = 898    
 INFO  Total Forwarding drop counter (DSP==1): packets = 13731    , bytes = 1633824    
 INFO  NPU_HOST PktsOut=     13728    , PktsIn (from TXPP)=         0    
@@ -478,9 +479,10 @@ The following is show output of command of "show platform npu counters -l LINE-C
 cisco@sfd-01:~$ 
 cisco@sfd-01:~$ sudo show platform npu counters -l LINE-CARD0
 
-Output for LINE-CARD0:
+======= LINE-CARD0 ========
 
-Output for asic0:
+======== asic0 =========
+
 INFO  Total Forwarding drop counter (DSP==1): packets = 2785    , bytes = 331418    
 INFO  NPU_HOST PktsOut=      2784    , PktsIn (from TXPP)=         0    
 INFO  ___________________Slice0_____________________|____________Slice1___________|___________Slice2____________|___________Slice3____________|___________Slice4____________|_____________Slice5___________|
@@ -511,7 +513,9 @@ INFO  IFG_TX1 good packets     =               0    |IFG_TX3 =               0  
 INFO  IFG_TX0 good bytes       =               0    |IFG_TX2 =               0    |IFG_TX4 =               0    |IFG_TX6 =               0    |IFG_TX8 =               0    |IFG_TX10 =               0    |
 INFO  IFG_TX1 good bytes       =               0    |IFG_TX3 =               0    |IFG_TX5 =               0    |IFG_TX7 =               0    |IFG_TX9 =               0    |IFG_TX11 =               0    |
 INFO  (*) = counter overflow
-Output for asic1:
+
+======== asic1 =========
+
 INFO  Total Forwarding lookup errors (Fwd-destination==20'h0 or DSP==0): packets = 7    , bytes = 898    
 INFO  Total Forwarding drop counter (DSP==1): packets = 16588    , bytes = 1973810    
 INFO  NPU_HOST PktsOut=     16584    , PktsIn (from TXPP)=         0    
@@ -553,7 +557,8 @@ The following is show output of command of "show platform npu counters -n asic0 
 cisco@sfd-01:~$ 
 cisco@sfd-01:~$ sudo show platform npu counters -n asic0 -l all
 
-Output for Supervisor:
+======= SUPERVISOR ========
+
 INFO  ____________________Slice0____________________|____________Slice1___________|____________Slice2___________|____________Slice3___________|____________Slice4___________|____________Slice5___________|
 INFO  IFG_RX0 packets          =               0    |IFG_RX2 =               0    |IFG_RX4 =               0    |IFG_RX6 =               0    |IFG_RX8 =               0    |IFG_RX10 =               0    |
 INFO  IFG_RX1 packets          =               0    |IFG_RX3 =               0    |IFG_RX5 =               0    |IFG_RX7 =               0    |IFG_RX9 =               0    |IFG_RX11 =               0    |
@@ -589,7 +594,9 @@ INFO  IFG_TX1 good packets     =               0    |IFG_TX3 =               0  
 INFO  IFG_TX0 good bytes       =               0    |IFG_TX2 =               0    |IFG_TX4 =               0    |IFG_TX6 =               0    |IFG_TX8 =               0    |IFG_TX10 =               0    |
 INFO  IFG_TX1 good bytes       =               0    |IFG_TX3 =               0    |IFG_TX5 =               0    |IFG_TX7 =               0    |IFG_TX9 =               0    |IFG_TX11 =               0    |
 INFO  (*) = counter overflow
-Output for LINE-CARD0:
+
+======= LINE-CARD0 ========
+
 INFO  Total Forwarding drop counter (DSP==1): packets = 7320    , bytes = 871080    
 INFO  NPU_HOST PktsOut=      7320    , PktsIn (from TXPP)=         0    
 INFO  ___________________Slice0_____________________|____________Slice1___________|___________Slice2____________|___________Slice3____________|___________Slice4____________|_____________Slice5___________|
@@ -621,7 +628,8 @@ INFO  IFG_TX0 good bytes       =               0    |IFG_TX2 =               0  
 INFO  IFG_TX1 good bytes       =               0    |IFG_TX3 =               0    |IFG_TX5 =               0    |IFG_TX7 =               0    |IFG_TX9 =               0    |IFG_TX11 =               0    |
 INFO  (*) = counter overflow
 
-Output for LINE-CARD1:
+======= LINE-CARD1 ========
+
 INFO  Total Forwarding lookup errors (Fwd-destination==20'h0 or DSP==0): packets = 7    , bytes = 918    
 INFO  Total Forwarding drop counter (DSP==1): packets = 23884    , bytes = 2842034    
 INFO  NPU_HOST PktsOut=     23880    , PktsIn (from TXPP)=         0    
@@ -663,117 +671,10 @@ The following is show output of command of "show platform npu counters -l all". 
 Last login: Fri Jun 27 03:52:56 2025 from 192.168.122.120
 cisco@sfd-01:~$ sudo show platform npu counters -l all
 
-Output for Supervisor:
+======= SUPERVISOR ========
 
-Output for asic0:
-INFO  ____________________Slice0____________________|____________Slice1___________|____________Slice2___________|____________Slice3___________|____________Slice4___________|____________Slice5___________|
-INFO  IFG_RX0 packets          =               0    |IFG_RX2 =               0    |IFG_RX4 =               0    |IFG_RX6 =               0    |IFG_RX8 =               0    |IFG_RX10 =               0    |
-INFO  IFG_RX1 packets          =               0    |IFG_RX3 =               0    |IFG_RX5 =               0    |IFG_RX7 =               0    |IFG_RX9 =               0    |IFG_RX11 =               0    |
-INFO  IFG_RX0 bytes            =               0    |IFG_RX2 =               0    |IFG_RX4 =               0    |IFG_RX6 =               0    |IFG_RX8 =               0    |IFG_RX10 =               0    |
-INFO  IFG_RX1 bytes            =               0    |IFG_RX3 =               0    |IFG_RX5 =               0    |IFG_RX7 =               0    |IFG_RX9 =               0    |IFG_RX11 =               0    |
-INFO  IFGB_RX0 packets         =               0    |IFG_RX2 =               0    |IFG_RX4 =               0    |IFG_RX6 =               0    |IFG_RX8 =               0    |IFG_RX10 =               0    |
-INFO  IFGB_RX1 packets         =               0    |IFG_RX3 =               0    |IFG_RX5 =               0    |IFG_RX7 =               0    |IFG_RX9 =               0    |IFG_RX11 =               0    |
-INFO  RXPP IFG0 input packets  =               0    |RXPP2   =               0    |RXPP4   =               0    |RXPP6   =               0    |RXPP8   =               0    |RXPP10   =               0    |
-INFO  RXPP IFG1 input packets  =               0    |RXPP3   =               0    |RXPP5   =               0    |RXPP7   =               0    |RXPP9   =               0    |RXPP11   =               0    |
-INFO  RXPP IFG0 output packets =               0    |RXPP2   =               0    |RXPP4   =               0    |RXPP6   =               0    |RXPP8   =               0    |RXPP10   =               0    |
-INFO  RXPP IFG1 output packets =               0    |RXPP3   =               0    |RXPP5   =               0    |RXPP7   =               0    |RXPP9   =               0    |RXPP11   =               0    |
-INFO  SMS IFG0 write packets   =               0    |SMS2    =               0    |SMS4    =               0    |SMS6    =               0    |SMS8    =               0    |SMS 10   =               0    |
-INFO  SMS IFG1 write packets   =               0    |SMS3    =               0    |SMS5    =               0    |SMS7    =               0    |SMS9    =               0    |SMS 11   =               0    |
-INFO  REASSEMBLY Slc0 packets  =               0    |REAS1   =               0    |REAS2   =               0    |REAS3   =               0    |REAS4   =               0    |REAS5    =               0    |
-INFO  PDVOQ Slice0 packets     =               0    |PDVOQ1  =               0    |PDVOQ2  =               0    |PDVOQ3  =               0    |PDVOQ4  =               0    |PDVOQ5   =               0    |
-INFO  PDVOQ Slice0 bytes       =               0    |PDVOQ1  =               0    |PDVOQ2  =               0    |PDVOQ3  =               0    |PDVOQ4  =               0    |PDVOQ5   =               0    |
-INFO  FILB Slice0 packets      =               0    |FILB1   =               0    |FILB2   =               0    |FILB3   =               0    |FILB4   =               0    |FILB5    =               0    |
-INFO  FILB Slice0 bytes        =               0    |FILB1   =               0    |FILB2   =               0    |FILB3   =               0    |FILB4   =               0    |FILB5    =               0    |
-INFO  XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX--C--R--O--S--S--XXXXXXXXXX--B--A--R--XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX|
-INFO  TXPDR Slice0 packets     =               0    |TXPDR1  =               0    |TXPDR2  =               0    |TXPDR3  =               0    |TXPDR4  =               0    |TXPDR5   =               0    |
-INFO  TXCGM Slice0 packets     =               0    |TXCGM1  =               0    |TXCGM2  =               0    |TXCGM3  =               0    |TXCGM4  =               0    |TXCGM5   =               0    |
-INFO  TXCGM Slice0 bytes       =               0    |TXCGM1  =               0    |TXCGM2  =               0    |TXCGM3  =               0    |TXCGM4  =               0    |TXCGM5   =               0    |
-INFO  TXCGM Slice0 UC packets  =               0    |TXCGM1  =               0    |TXCGM2  =               0    |TXCGM3  =               0    |TXCGM4  =               0    |TXCGM5   =               0    |
-INFO  TXCGM Slice0 MC packets  =               0    |TXCGM1  =               0    |TXCGM2  =               0    |TXCGM3  =               0    |TXCGM4  =               0    |TXCGM5   =               0    |
-INFO  SMS IFG0 read packets    =               0    |SMS2    =               0    |SMS4    =               0    |SMS6    =               0    |SMS8    =               0    |SMS 10   =               0    |
-INFO  SMS IFG1 read packets    =               0    |SMS3    =               0    |SMS5    =               0    |SMS7    =               0    |SMS9    =               0    |SMS 11   =               0    |
-INFO  TXPP0 packets            =               0    |TXPP2   =               0    |TXPP4   =               0    |TXPP6   =               0    |TXPP8   =               0    |TXPP10   =               0    |
-INFO  TXPP1 packets            =               0    |TXPP3   =               0    |TXPP5   =               0    |TXPP7   =               0    |TXPP9   =               0    |TXPP11   =               0    |
-INFO  IFGB_TX0 packets         =               0    |IFGB2   =               0    |IFGB4   =               0    |IFGB6   =               0    |IFGB8   =               0    |IFGB10   =               0    |
-INFO  IFGB_TX1 packets         =               0    |IFGB3   =               0    |IFGB5   =               0    |IFGB7   =               0    |IFGB9   =               0    |IFGB11   =               0    |
-INFO  IFG_TX0 good packets     =               0    |IFG_TX2 =               0    |IFG_TX4 =               0    |IFG_TX6 =               0    |IFG_TX8 =               0    |IFG_TX10 =               0    |
-INFO  IFG_TX1 good packets     =               0    |IFG_TX3 =               0    |IFG_TX5 =               0    |IFG_TX7 =               0    |IFG_TX9 =               0    |IFG_TX11 =               0    |
-INFO  IFG_TX0 good bytes       =               0    |IFG_TX2 =               0    |IFG_TX4 =               0    |IFG_TX6 =               0    |IFG_TX8 =               0    |IFG_TX10 =               0    |
-INFO  IFG_TX1 good bytes       =               0    |IFG_TX3 =               0    |IFG_TX5 =               0    |IFG_TX7 =               0    |IFG_TX9 =               0    |IFG_TX11 =               0    |
-INFO  (*) = counter overflow
-Output for asic1:
-INFO  ____________________Slice0____________________|____________Slice1___________|____________Slice2___________|____________Slice3___________|____________Slice4___________|____________Slice5___________|
-INFO  IFG_RX0 packets          =               0    |IFG_RX2 =               0    |IFG_RX4 =               0    |IFG_RX6 =               0    |IFG_RX8 =               0    |IFG_RX10 =               0    |
-INFO  IFG_RX1 packets          =               0    |IFG_RX3 =               0    |IFG_RX5 =               0    |IFG_RX7 =               0    |IFG_RX9 =               0    |IFG_RX11 =               0    |
-INFO  IFG_RX0 bytes            =               0    |IFG_RX2 =               0    |IFG_RX4 =               0    |IFG_RX6 =               0    |IFG_RX8 =               0    |IFG_RX10 =               0    |
-INFO  IFG_RX1 bytes            =               0    |IFG_RX3 =               0    |IFG_RX5 =               0    |IFG_RX7 =               0    |IFG_RX9 =               0    |IFG_RX11 =               0    |
-INFO  IFGB_RX0 packets         =               0    |IFG_RX2 =               0    |IFG_RX4 =               0    |IFG_RX6 =               0    |IFG_RX8 =               0    |IFG_RX10 =               0    |
-INFO  IFGB_RX1 packets         =               0    |IFG_RX3 =               0    |IFG_RX5 =               0    |IFG_RX7 =               0    |IFG_RX9 =               0    |IFG_RX11 =               0    |
-INFO  RXPP IFG0 input packets  =               0    |RXPP2   =               0    |RXPP4   =               0    |RXPP6   =               0    |RXPP8   =               0    |RXPP10   =               0    |
-INFO  RXPP IFG1 input packets  =               0    |RXPP3   =               0    |RXPP5   =               0    |RXPP7   =               0    |RXPP9   =               0    |RXPP11   =               0    |
-INFO  RXPP IFG0 output packets =               0    |RXPP2   =               0    |RXPP4   =               0    |RXPP6   =               0    |RXPP8   =               0    |RXPP10   =               0    |
-INFO  RXPP IFG1 output packets =               0    |RXPP3   =               0    |RXPP5   =               0    |RXPP7   =               0    |RXPP9   =               0    |RXPP11   =               0    |
-INFO  SMS IFG0 write packets   =               0    |SMS2    =               0    |SMS4    =               0    |SMS6    =               0    |SMS8    =               0    |SMS 10   =               0    |
-INFO  SMS IFG1 write packets   =               0    |SMS3    =               0    |SMS5    =               0    |SMS7    =               0    |SMS9    =               0    |SMS 11   =               0    |
-INFO  REASSEMBLY Slc0 packets  =               0    |REAS1   =               0    |REAS2   =               0    |REAS3   =               0    |REAS4   =               0    |REAS5    =               0    |
-INFO  PDVOQ Slice0 packets     =               0    |PDVOQ1  =               0    |PDVOQ2  =               0    |PDVOQ3  =               0    |PDVOQ4  =               0    |PDVOQ5   =               0    |
-INFO  PDVOQ Slice0 bytes       =               0    |PDVOQ1  =               0    |PDVOQ2  =               0    |PDVOQ3  =               0    |PDVOQ4  =               0    |PDVOQ5   =               0    |
-INFO  FILB Slice0 packets      =               0    |FILB1   =               0    |FILB2   =               0    |FILB3   =               0    |FILB4   =               0    |FILB5    =               0    |
-INFO  FILB Slice0 bytes        =               0    |FILB1   =               0    |FILB2   =               0    |FILB3   =               0    |FILB4   =               0    |FILB5    =               0    |
-INFO  XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX--C--R--O--S--S--XXXXXXXXXX--B--A--R--XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX|
-INFO  TXPDR Slice0 packets     =               0    |TXPDR1  =               0    |TXPDR2  =               0    |TXPDR3  =               0    |TXPDR4  =               0    |TXPDR5   =               0    |
-INFO  TXCGM Slice0 packets     =               0    |TXCGM1  =               0    |TXCGM2  =               0    |TXCGM3  =               0    |TXCGM4  =               0    |TXCGM5   =               0    |
-INFO  TXCGM Slice0 bytes       =               0    |TXCGM1  =               0    |TXCGM2  =               0    |TXCGM3  =               0    |TXCGM4  =               0    |TXCGM5   =               0    |
-INFO  TXCGM Slice0 UC packets  =               0    |TXCGM1  =               0    |TXCGM2  =               0    |TXCGM3  =               0    |TXCGM4  =               0    |TXCGM5   =               0    |
-INFO  TXCGM Slice0 MC packets  =               0    |TXCGM1  =               0    |TXCGM2  =               0    |TXCGM3  =               0    |TXCGM4  =               0    |TXCGM5   =               0    |
-INFO  SMS IFG0 read packets    =               0    |SMS2    =               0    |SMS4    =               0    |SMS6    =               0    |SMS8    =               0    |SMS 10   =               0    |
-INFO  SMS IFG1 read packets    =               0    |SMS3    =               0    |SMS5    =               0    |SMS7    =               0    |SMS9    =               0    |SMS 11   =               0    |
-INFO  TXPP0 packets            =               0    |TXPP2   =               0    |TXPP4   =               0    |TXPP6   =               0    |TXPP8   =               0    |TXPP10   =               0    |
-INFO  TXPP1 packets            =               0    |TXPP3   =               0    |TXPP5   =               0    |TXPP7   =               0    |TXPP9   =               0    |TXPP11   =               0    |
-INFO  IFGB_TX0 packets         =               0    |IFGB2   =               0    |IFGB4   =               0    |IFGB6   =               0    |IFGB8   =               0    |IFGB10   =               0    |
-INFO  IFGB_TX1 packets         =               0    |IFGB3   =               0    |IFGB5   =               0    |IFGB7   =               0    |IFGB9   =               0    |IFGB11   =               0    |
-INFO  IFG_TX0 good packets     =               0    |IFG_TX2 =               0    |IFG_TX4 =               0    |IFG_TX6 =               0    |IFG_TX8 =               0    |IFG_TX10 =               0    |
-INFO  IFG_TX1 good packets     =               0    |IFG_TX3 =               0    |IFG_TX5 =               0    |IFG_TX7 =               0    |IFG_TX9 =               0    |IFG_TX11 =               0    |
-INFO  IFG_TX0 good bytes       =               0    |IFG_TX2 =               0    |IFG_TX4 =               0    |IFG_TX6 =               0    |IFG_TX8 =               0    |IFG_TX10 =               0    |
-INFO  IFG_TX1 good bytes       =               0    |IFG_TX3 =               0    |IFG_TX5 =               0    |IFG_TX7 =               0    |IFG_TX9 =               0    |IFG_TX11 =               0    |
-INFO  (*) = counter overflow
-Output for asic2:
-INFO  ____________________Slice0____________________|____________Slice1___________|____________Slice2___________|____________Slice3___________|____________Slice4___________|____________Slice5___________|
-INFO  IFG_RX0 packets          =               0    |IFG_RX2 =               0    |IFG_RX4 =               0    |IFG_RX6 =               0    |IFG_RX8 =               0    |IFG_RX10 =               0    |
-INFO  IFG_RX1 packets          =               0    |IFG_RX3 =               0    |IFG_RX5 =               0    |IFG_RX7 =               0    |IFG_RX9 =               0    |IFG_RX11 =               0    |
-INFO  IFG_RX0 bytes            =               0    |IFG_RX2 =               0    |IFG_RX4 =               0    |IFG_RX6 =               0    |IFG_RX8 =               0    |IFG_RX10 =               0    |
-INFO  IFG_RX1 bytes            =               0    |IFG_RX3 =               0    |IFG_RX5 =               0    |IFG_RX7 =               0    |IFG_RX9 =               0    |IFG_RX11 =               0    |
-INFO  IFGB_RX0 packets         =               0    |IFG_RX2 =               0    |IFG_RX4 =               0    |IFG_RX6 =               0    |IFG_RX8 =               0    |IFG_RX10 =               0    |
-INFO  IFGB_RX1 packets         =               0    |IFG_RX3 =               0    |IFG_RX5 =               0    |IFG_RX7 =               0    |IFG_RX9 =               0    |IFG_RX11 =               0    |
-INFO  RXPP IFG0 input packets  =               0    |RXPP2   =               0    |RXPP4   =               0    |RXPP6   =               0    |RXPP8   =               0    |RXPP10   =               0    |
-INFO  RXPP IFG1 input packets  =               0    |RXPP3   =               0    |RXPP5   =               0    |RXPP7   =               0    |RXPP9   =               0    |RXPP11   =               0    |
-INFO  RXPP IFG0 output packets =               0    |RXPP2   =               0    |RXPP4   =               0    |RXPP6   =               0    |RXPP8   =               0    |RXPP10   =               0    |
-INFO  RXPP IFG1 output packets =               0    |RXPP3   =               0    |RXPP5   =               0    |RXPP7   =               0    |RXPP9   =               0    |RXPP11   =               0    |
-INFO  SMS IFG0 write packets   =               0    |SMS2    =               0    |SMS4    =               0    |SMS6    =               0    |SMS8    =               0    |SMS 10   =               0    |
-INFO  SMS IFG1 write packets   =               0    |SMS3    =               0    |SMS5    =               0    |SMS7    =               0    |SMS9    =               0    |SMS 11   =               0    |
-INFO  REASSEMBLY Slc0 packets  =               0    |REAS1   =               0    |REAS2   =               0    |REAS3   =               0    |REAS4   =               0    |REAS5    =               0    |
-INFO  PDVOQ Slice0 packets     =               0    |PDVOQ1  =               0    |PDVOQ2  =               0    |PDVOQ3  =               0    |PDVOQ4  =               0    |PDVOQ5   =               0    |
-INFO  PDVOQ Slice0 bytes       =               0    |PDVOQ1  =               0    |PDVOQ2  =               0    |PDVOQ3  =               0    |PDVOQ4  =               0    |PDVOQ5   =               0    |
-INFO  FILB Slice0 packets      =               0    |FILB1   =               0    |FILB2   =               0    |FILB3   =               0    |FILB4   =               0    |FILB5    =               0    |
-INFO  FILB Slice0 bytes        =               0    |FILB1   =               0    |FILB2   =               0    |FILB3   =               0    |FILB4   =               0    |FILB5    =               0    |
-INFO  XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX--C--R--O--S--S--XXXXXXXXXX--B--A--R--XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX|
-INFO  TXPDR Slice0 packets     =               0    |TXPDR1  =               0    |TXPDR2  =               0    |TXPDR3  =               0    |TXPDR4  =               0    |TXPDR5   =               0    |
-INFO  TXCGM Slice0 packets     =               0    |TXCGM1  =               0    |TXCGM2  =               0    |TXCGM3  =               0    |TXCGM4  =               0    |TXCGM5   =               0    |
-INFO  TXCGM Slice0 bytes       =               0    |TXCGM1  =               0    |TXCGM2  =               0    |TXCGM3  =               0    |TXCGM4  =               0    |TXCGM5   =               0    |
-INFO  TXCGM Slice0 UC packets  =               0    |TXCGM1  =               0    |TXCGM2  =               0    |TXCGM3  =               0    |TXCGM4  =               0    |TXCGM5   =               0    |
-INFO  TXCGM Slice0 MC packets  =               0    |TXCGM1  =               0    |TXCGM2  =               0    |TXCGM3  =               0    |TXCGM4  =               0    |TXCGM5   =               0    |
-INFO  SMS IFG0 read packets    =               0    |SMS2    =               0    |SMS4    =               0    |SMS6    =               0    |SMS8    =               0    |SMS 10   =               0    |
-INFO  SMS IFG1 read packets    =               0    |SMS3    =               0    |SMS5    =               0    |SMS7    =               0    |SMS9    =               0    |SMS 11   =               0    |
-INFO  TXPP0 packets            =               0    |TXPP2   =               0    |TXPP4   =               0    |TXPP6   =               0    |TXPP8   =               0    |TXPP10   =               0    |
-INFO  TXPP1 packets            =               0    |TXPP3   =               0    |TXPP5   =               0    |TXPP7   =               0    |TXPP9   =               0    |TXPP11   =               0    |
-INFO  IFGB_TX0 packets         =               0    |IFGB2   =               0    |IFGB4   =               0    |IFGB6   =               0    |IFGB8   =               0    |IFGB10   =               0    |
-INFO  IFGB_TX1 packets         =               0    |IFGB3   =               0    |IFGB5   =               0    |IFGB7   =               0    |IFGB9   =               0    |IFGB11   =               0    |
-INFO  IFG_TX0 good packets     =               0    |IFG_TX2 =               0    |IFG_TX4 =               0    |IFG_TX6 =               0    |IFG_TX8 =               0    |IFG_TX10 =               0    |
-INFO  IFG_TX1 good packets     =               0    |IFG_TX3 =               0    |IFG_TX5 =               0    |IFG_TX7 =               0    |IFG_TX9 =               0    |IFG_TX11 =               0    |
-INFO  IFG_TX0 good bytes       =               0    |IFG_TX2 =               0    |IFG_TX4 =               0    |IFG_TX6 =               0    |IFG_TX8 =               0    |IFG_TX10 =               0    |
-INFO  IFG_TX1 good bytes       =               0    |IFG_TX3 =               0    |IFG_TX5 =               0    |IFG_TX7 =               0    |IFG_TX9 =               0    |IFG_TX11 =               0    |
-INFO  (*) = counter overflow
-Output for asic3:
+======== asic0 =========
+
 INFO  ____________________Slice0____________________|____________Slice1___________|____________Slice2___________|____________Slice3___________|____________Slice4___________|____________Slice5___________|
 INFO  IFG_RX0 packets          =               0    |IFG_RX2 =               0    |IFG_RX4 =               0    |IFG_RX6 =               0    |IFG_RX8 =               0    |IFG_RX10 =               0    |
 INFO  IFG_RX1 packets          =               0    |IFG_RX3 =               0    |IFG_RX5 =               0    |IFG_RX7 =               0    |IFG_RX9 =               0    |IFG_RX11 =               0    |
@@ -810,8 +711,124 @@ INFO  IFG_TX0 good bytes       =               0    |IFG_TX2 =               0  
 INFO  IFG_TX1 good bytes       =               0    |IFG_TX3 =               0    |IFG_TX5 =               0    |IFG_TX7 =               0    |IFG_TX9 =               0    |IFG_TX11 =               0    |
 INFO  (*) = counter overflow
 
-Output for LINE-CARD0:
-Output for asic0:
+======== asic1 =========
+
+INFO  ____________________Slice0____________________|____________Slice1___________|____________Slice2___________|____________Slice3___________|____________Slice4___________|____________Slice5___________|
+INFO  IFG_RX0 packets          =               0    |IFG_RX2 =               0    |IFG_RX4 =               0    |IFG_RX6 =               0    |IFG_RX8 =               0    |IFG_RX10 =               0    |
+INFO  IFG_RX1 packets          =               0    |IFG_RX3 =               0    |IFG_RX5 =               0    |IFG_RX7 =               0    |IFG_RX9 =               0    |IFG_RX11 =               0    |
+INFO  IFG_RX0 bytes            =               0    |IFG_RX2 =               0    |IFG_RX4 =               0    |IFG_RX6 =               0    |IFG_RX8 =               0    |IFG_RX10 =               0    |
+INFO  IFG_RX1 bytes            =               0    |IFG_RX3 =               0    |IFG_RX5 =               0    |IFG_RX7 =               0    |IFG_RX9 =               0    |IFG_RX11 =               0    |
+INFO  IFGB_RX0 packets         =               0    |IFG_RX2 =               0    |IFG_RX4 =               0    |IFG_RX6 =               0    |IFG_RX8 =               0    |IFG_RX10 =               0    |
+INFO  IFGB_RX1 packets         =               0    |IFG_RX3 =               0    |IFG_RX5 =               0    |IFG_RX7 =               0    |IFG_RX9 =               0    |IFG_RX11 =               0    |
+INFO  RXPP IFG0 input packets  =               0    |RXPP2   =               0    |RXPP4   =               0    |RXPP6   =               0    |RXPP8   =               0    |RXPP10   =               0    |
+INFO  RXPP IFG1 input packets  =               0    |RXPP3   =               0    |RXPP5   =               0    |RXPP7   =               0    |RXPP9   =               0    |RXPP11   =               0    |
+INFO  RXPP IFG0 output packets =               0    |RXPP2   =               0    |RXPP4   =               0    |RXPP6   =               0    |RXPP8   =               0    |RXPP10   =               0    |
+INFO  RXPP IFG1 output packets =               0    |RXPP3   =               0    |RXPP5   =               0    |RXPP7   =               0    |RXPP9   =               0    |RXPP11   =               0    |
+INFO  SMS IFG0 write packets   =               0    |SMS2    =               0    |SMS4    =               0    |SMS6    =               0    |SMS8    =               0    |SMS 10   =               0    |
+INFO  SMS IFG1 write packets   =               0    |SMS3    =               0    |SMS5    =               0    |SMS7    =               0    |SMS9    =               0    |SMS 11   =               0    |
+INFO  REASSEMBLY Slc0 packets  =               0    |REAS1   =               0    |REAS2   =               0    |REAS3   =               0    |REAS4   =               0    |REAS5    =               0    |
+INFO  PDVOQ Slice0 packets     =               0    |PDVOQ1  =               0    |PDVOQ2  =               0    |PDVOQ3  =               0    |PDVOQ4  =               0    |PDVOQ5   =               0    |
+INFO  PDVOQ Slice0 bytes       =               0    |PDVOQ1  =               0    |PDVOQ2  =               0    |PDVOQ3  =               0    |PDVOQ4  =               0    |PDVOQ5   =               0    |
+INFO  FILB Slice0 packets      =               0    |FILB1   =               0    |FILB2   =               0    |FILB3   =               0    |FILB4   =               0    |FILB5    =               0    |
+INFO  FILB Slice0 bytes        =               0    |FILB1   =               0    |FILB2   =               0    |FILB3   =               0    |FILB4   =               0    |FILB5    =               0    |
+INFO  XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX--C--R--O--S--S--XXXXXXXXXX--B--A--R--XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX|
+INFO  TXPDR Slice0 packets     =               0    |TXPDR1  =               0    |TXPDR2  =               0    |TXPDR3  =               0    |TXPDR4  =               0    |TXPDR5   =               0    |
+INFO  TXCGM Slice0 packets     =               0    |TXCGM1  =               0    |TXCGM2  =               0    |TXCGM3  =               0    |TXCGM4  =               0    |TXCGM5   =               0    |
+INFO  TXCGM Slice0 bytes       =               0    |TXCGM1  =               0    |TXCGM2  =               0    |TXCGM3  =               0    |TXCGM4  =               0    |TXCGM5   =               0    |
+INFO  TXCGM Slice0 UC packets  =               0    |TXCGM1  =               0    |TXCGM2  =               0    |TXCGM3  =               0    |TXCGM4  =               0    |TXCGM5   =               0    |
+INFO  TXCGM Slice0 MC packets  =               0    |TXCGM1  =               0    |TXCGM2  =               0    |TXCGM3  =               0    |TXCGM4  =               0    |TXCGM5   =               0    |
+INFO  SMS IFG0 read packets    =               0    |SMS2    =               0    |SMS4    =               0    |SMS6    =               0    |SMS8    =               0    |SMS 10   =               0    |
+INFO  SMS IFG1 read packets    =               0    |SMS3    =               0    |SMS5    =               0    |SMS7    =               0    |SMS9    =               0    |SMS 11   =               0    |
+INFO  TXPP0 packets            =               0    |TXPP2   =               0    |TXPP4   =               0    |TXPP6   =               0    |TXPP8   =               0    |TXPP10   =               0    |
+INFO  TXPP1 packets            =               0    |TXPP3   =               0    |TXPP5   =               0    |TXPP7   =               0    |TXPP9   =               0    |TXPP11   =               0    |
+INFO  IFGB_TX0 packets         =               0    |IFGB2   =               0    |IFGB4   =               0    |IFGB6   =               0    |IFGB8   =               0    |IFGB10   =               0    |
+INFO  IFGB_TX1 packets         =               0    |IFGB3   =               0    |IFGB5   =               0    |IFGB7   =               0    |IFGB9   =               0    |IFGB11   =               0    |
+INFO  IFG_TX0 good packets     =               0    |IFG_TX2 =               0    |IFG_TX4 =               0    |IFG_TX6 =               0    |IFG_TX8 =               0    |IFG_TX10 =               0    |
+INFO  IFG_TX1 good packets     =               0    |IFG_TX3 =               0    |IFG_TX5 =               0    |IFG_TX7 =               0    |IFG_TX9 =               0    |IFG_TX11 =               0    |
+INFO  IFG_TX0 good bytes       =               0    |IFG_TX2 =               0    |IFG_TX4 =               0    |IFG_TX6 =               0    |IFG_TX8 =               0    |IFG_TX10 =               0    |
+INFO  IFG_TX1 good bytes       =               0    |IFG_TX3 =               0    |IFG_TX5 =               0    |IFG_TX7 =               0    |IFG_TX9 =               0    |IFG_TX11 =               0    |
+INFO  (*) = counter overflow
+
+======== asic2 =========
+
+INFO  ____________________Slice0____________________|____________Slice1___________|____________Slice2___________|____________Slice3___________|____________Slice4___________|____________Slice5___________|
+INFO  IFG_RX0 packets          =               0    |IFG_RX2 =               0    |IFG_RX4 =               0    |IFG_RX6 =               0    |IFG_RX8 =               0    |IFG_RX10 =               0    |
+INFO  IFG_RX1 packets          =               0    |IFG_RX3 =               0    |IFG_RX5 =               0    |IFG_RX7 =               0    |IFG_RX9 =               0    |IFG_RX11 =               0    |
+INFO  IFG_RX0 bytes            =               0    |IFG_RX2 =               0    |IFG_RX4 =               0    |IFG_RX6 =               0    |IFG_RX8 =               0    |IFG_RX10 =               0    |
+INFO  IFG_RX1 bytes            =               0    |IFG_RX3 =               0    |IFG_RX5 =               0    |IFG_RX7 =               0    |IFG_RX9 =               0    |IFG_RX11 =               0    |
+INFO  IFGB_RX0 packets         =               0    |IFG_RX2 =               0    |IFG_RX4 =               0    |IFG_RX6 =               0    |IFG_RX8 =               0    |IFG_RX10 =               0    |
+INFO  IFGB_RX1 packets         =               0    |IFG_RX3 =               0    |IFG_RX5 =               0    |IFG_RX7 =               0    |IFG_RX9 =               0    |IFG_RX11 =               0    |
+INFO  RXPP IFG0 input packets  =               0    |RXPP2   =               0    |RXPP4   =               0    |RXPP6   =               0    |RXPP8   =               0    |RXPP10   =               0    |
+INFO  RXPP IFG1 input packets  =               0    |RXPP3   =               0    |RXPP5   =               0    |RXPP7   =               0    |RXPP9   =               0    |RXPP11   =               0    |
+INFO  RXPP IFG0 output packets =               0    |RXPP2   =               0    |RXPP4   =               0    |RXPP6   =               0    |RXPP8   =               0    |RXPP10   =               0    |
+INFO  RXPP IFG1 output packets =               0    |RXPP3   =               0    |RXPP5   =               0    |RXPP7   =               0    |RXPP9   =               0    |RXPP11   =               0    |
+INFO  SMS IFG0 write packets   =               0    |SMS2    =               0    |SMS4    =               0    |SMS6    =               0    |SMS8    =               0    |SMS 10   =               0    |
+INFO  SMS IFG1 write packets   =               0    |SMS3    =               0    |SMS5    =               0    |SMS7    =               0    |SMS9    =               0    |SMS 11   =               0    |
+INFO  REASSEMBLY Slc0 packets  =               0    |REAS1   =               0    |REAS2   =               0    |REAS3   =               0    |REAS4   =               0    |REAS5    =               0    |
+INFO  PDVOQ Slice0 packets     =               0    |PDVOQ1  =               0    |PDVOQ2  =               0    |PDVOQ3  =               0    |PDVOQ4  =               0    |PDVOQ5   =               0    |
+INFO  PDVOQ Slice0 bytes       =               0    |PDVOQ1  =               0    |PDVOQ2  =               0    |PDVOQ3  =               0    |PDVOQ4  =               0    |PDVOQ5   =               0    |
+INFO  FILB Slice0 packets      =               0    |FILB1   =               0    |FILB2   =               0    |FILB3   =               0    |FILB4   =               0    |FILB5    =               0    |
+INFO  FILB Slice0 bytes        =               0    |FILB1   =               0    |FILB2   =               0    |FILB3   =               0    |FILB4   =               0    |FILB5    =               0    |
+INFO  XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX--C--R--O--S--S--XXXXXXXXXX--B--A--R--XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX|
+INFO  TXPDR Slice0 packets     =               0    |TXPDR1  =               0    |TXPDR2  =               0    |TXPDR3  =               0    |TXPDR4  =               0    |TXPDR5   =               0    |
+INFO  TXCGM Slice0 packets     =               0    |TXCGM1  =               0    |TXCGM2  =               0    |TXCGM3  =               0    |TXCGM4  =               0    |TXCGM5   =               0    |
+INFO  TXCGM Slice0 bytes       =               0    |TXCGM1  =               0    |TXCGM2  =               0    |TXCGM3  =               0    |TXCGM4  =               0    |TXCGM5   =               0    |
+INFO  TXCGM Slice0 UC packets  =               0    |TXCGM1  =               0    |TXCGM2  =               0    |TXCGM3  =               0    |TXCGM4  =               0    |TXCGM5   =               0    |
+INFO  TXCGM Slice0 MC packets  =               0    |TXCGM1  =               0    |TXCGM2  =               0    |TXCGM3  =               0    |TXCGM4  =               0    |TXCGM5   =               0    |
+INFO  SMS IFG0 read packets    =               0    |SMS2    =               0    |SMS4    =               0    |SMS6    =               0    |SMS8    =               0    |SMS 10   =               0    |
+INFO  SMS IFG1 read packets    =               0    |SMS3    =               0    |SMS5    =               0    |SMS7    =               0    |SMS9    =               0    |SMS 11   =               0    |
+INFO  TXPP0 packets            =               0    |TXPP2   =               0    |TXPP4   =               0    |TXPP6   =               0    |TXPP8   =               0    |TXPP10   =               0    |
+INFO  TXPP1 packets            =               0    |TXPP3   =               0    |TXPP5   =               0    |TXPP7   =               0    |TXPP9   =               0    |TXPP11   =               0    |
+INFO  IFGB_TX0 packets         =               0    |IFGB2   =               0    |IFGB4   =               0    |IFGB6   =               0    |IFGB8   =               0    |IFGB10   =               0    |
+INFO  IFGB_TX1 packets         =               0    |IFGB3   =               0    |IFGB5   =               0    |IFGB7   =               0    |IFGB9   =               0    |IFGB11   =               0    |
+INFO  IFG_TX0 good packets     =               0    |IFG_TX2 =               0    |IFG_TX4 =               0    |IFG_TX6 =               0    |IFG_TX8 =               0    |IFG_TX10 =               0    |
+INFO  IFG_TX1 good packets     =               0    |IFG_TX3 =               0    |IFG_TX5 =               0    |IFG_TX7 =               0    |IFG_TX9 =               0    |IFG_TX11 =               0    |
+INFO  IFG_TX0 good bytes       =               0    |IFG_TX2 =               0    |IFG_TX4 =               0    |IFG_TX6 =               0    |IFG_TX8 =               0    |IFG_TX10 =               0    |
+INFO  IFG_TX1 good bytes       =               0    |IFG_TX3 =               0    |IFG_TX5 =               0    |IFG_TX7 =               0    |IFG_TX9 =               0    |IFG_TX11 =               0    |
+INFO  (*) = counter overflow
+
+======== asic3 =========
+
+INFO  ____________________Slice0____________________|____________Slice1___________|____________Slice2___________|____________Slice3___________|____________Slice4___________|____________Slice5___________|
+INFO  IFG_RX0 packets          =               0    |IFG_RX2 =               0    |IFG_RX4 =               0    |IFG_RX6 =               0    |IFG_RX8 =               0    |IFG_RX10 =               0    |
+INFO  IFG_RX1 packets          =               0    |IFG_RX3 =               0    |IFG_RX5 =               0    |IFG_RX7 =               0    |IFG_RX9 =               0    |IFG_RX11 =               0    |
+INFO  IFG_RX0 bytes            =               0    |IFG_RX2 =               0    |IFG_RX4 =               0    |IFG_RX6 =               0    |IFG_RX8 =               0    |IFG_RX10 =               0    |
+INFO  IFG_RX1 bytes            =               0    |IFG_RX3 =               0    |IFG_RX5 =               0    |IFG_RX7 =               0    |IFG_RX9 =               0    |IFG_RX11 =               0    |
+INFO  IFGB_RX0 packets         =               0    |IFG_RX2 =               0    |IFG_RX4 =               0    |IFG_RX6 =               0    |IFG_RX8 =               0    |IFG_RX10 =               0    |
+INFO  IFGB_RX1 packets         =               0    |IFG_RX3 =               0    |IFG_RX5 =               0    |IFG_RX7 =               0    |IFG_RX9 =               0    |IFG_RX11 =               0    |
+INFO  RXPP IFG0 input packets  =               0    |RXPP2   =               0    |RXPP4   =               0    |RXPP6   =               0    |RXPP8   =               0    |RXPP10   =               0    |
+INFO  RXPP IFG1 input packets  =               0    |RXPP3   =               0    |RXPP5   =               0    |RXPP7   =               0    |RXPP9   =               0    |RXPP11   =               0    |
+INFO  RXPP IFG0 output packets =               0    |RXPP2   =               0    |RXPP4   =               0    |RXPP6   =               0    |RXPP8   =               0    |RXPP10   =               0    |
+INFO  RXPP IFG1 output packets =               0    |RXPP3   =               0    |RXPP5   =               0    |RXPP7   =               0    |RXPP9   =               0    |RXPP11   =               0    |
+INFO  SMS IFG0 write packets   =               0    |SMS2    =               0    |SMS4    =               0    |SMS6    =               0    |SMS8    =               0    |SMS 10   =               0    |
+INFO  SMS IFG1 write packets   =               0    |SMS3    =               0    |SMS5    =               0    |SMS7    =               0    |SMS9    =               0    |SMS 11   =               0    |
+INFO  REASSEMBLY Slc0 packets  =               0    |REAS1   =               0    |REAS2   =               0    |REAS3   =               0    |REAS4   =               0    |REAS5    =               0    |
+INFO  PDVOQ Slice0 packets     =               0    |PDVOQ1  =               0    |PDVOQ2  =               0    |PDVOQ3  =               0    |PDVOQ4  =               0    |PDVOQ5   =               0    |
+INFO  PDVOQ Slice0 bytes       =               0    |PDVOQ1  =               0    |PDVOQ2  =               0    |PDVOQ3  =               0    |PDVOQ4  =               0    |PDVOQ5   =               0    |
+INFO  FILB Slice0 packets      =               0    |FILB1   =               0    |FILB2   =               0    |FILB3   =               0    |FILB4   =               0    |FILB5    =               0    |
+INFO  FILB Slice0 bytes        =               0    |FILB1   =               0    |FILB2   =               0    |FILB3   =               0    |FILB4   =               0    |FILB5    =               0    |
+INFO  XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX--C--R--O--S--S--XXXXXXXXXX--B--A--R--XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX|
+INFO  TXPDR Slice0 packets     =               0    |TXPDR1  =               0    |TXPDR2  =               0    |TXPDR3  =               0    |TXPDR4  =               0    |TXPDR5   =               0    |
+INFO  TXCGM Slice0 packets     =               0    |TXCGM1  =               0    |TXCGM2  =               0    |TXCGM3  =               0    |TXCGM4  =               0    |TXCGM5   =               0    |
+INFO  TXCGM Slice0 bytes       =               0    |TXCGM1  =               0    |TXCGM2  =               0    |TXCGM3  =               0    |TXCGM4  =               0    |TXCGM5   =               0    |
+INFO  TXCGM Slice0 UC packets  =               0    |TXCGM1  =               0    |TXCGM2  =               0    |TXCGM3  =               0    |TXCGM4  =               0    |TXCGM5   =               0    |
+INFO  TXCGM Slice0 MC packets  =               0    |TXCGM1  =               0    |TXCGM2  =               0    |TXCGM3  =               0    |TXCGM4  =               0    |TXCGM5   =               0    |
+INFO  SMS IFG0 read packets    =               0    |SMS2    =               0    |SMS4    =               0    |SMS6    =               0    |SMS8    =               0    |SMS 10   =               0    |
+INFO  SMS IFG1 read packets    =               0    |SMS3    =               0    |SMS5    =               0    |SMS7    =               0    |SMS9    =               0    |SMS 11   =               0    |
+INFO  TXPP0 packets            =               0    |TXPP2   =               0    |TXPP4   =               0    |TXPP6   =               0    |TXPP8   =               0    |TXPP10   =               0    |
+INFO  TXPP1 packets            =               0    |TXPP3   =               0    |TXPP5   =               0    |TXPP7   =               0    |TXPP9   =               0    |TXPP11   =               0    |
+INFO  IFGB_TX0 packets         =               0    |IFGB2   =               0    |IFGB4   =               0    |IFGB6   =               0    |IFGB8   =               0    |IFGB10   =               0    |
+INFO  IFGB_TX1 packets         =               0    |IFGB3   =               0    |IFGB5   =               0    |IFGB7   =               0    |IFGB9   =               0    |IFGB11   =               0    |
+INFO  IFG_TX0 good packets     =               0    |IFG_TX2 =               0    |IFG_TX4 =               0    |IFG_TX6 =               0    |IFG_TX8 =               0    |IFG_TX10 =               0    |
+INFO  IFG_TX1 good packets     =               0    |IFG_TX3 =               0    |IFG_TX5 =               0    |IFG_TX7 =               0    |IFG_TX9 =               0    |IFG_TX11 =               0    |
+INFO  IFG_TX0 good bytes       =               0    |IFG_TX2 =               0    |IFG_TX4 =               0    |IFG_TX6 =               0    |IFG_TX8 =               0    |IFG_TX10 =               0    |
+INFO  IFG_TX1 good bytes       =               0    |IFG_TX3 =               0    |IFG_TX5 =               0    |IFG_TX7 =               0    |IFG_TX9 =               0    |IFG_TX11 =               0    |
+INFO  (*) = counter overflow
+
+======= LINE-CARD0 ========
+
+======== asic0 =========
+
 INFO  Total Forwarding lookup errors (Fwd-destination==20'h0 or DSP==0): packets = 7    , bytes = 898    
 INFO  Total Forwarding drop counter (DSP==1): packets = 21460    , bytes = 2553578    
 INFO  NPU_HOST PktsOut=     21456    , PktsIn (from TXPP)=         0    
@@ -843,7 +860,9 @@ INFO  IFG_TX1 good packets     =               0    |IFG_TX3 =               0  
 INFO  IFG_TX0 good bytes       =               0    |IFG_TX2 =               0    |IFG_TX4 =               0    |IFG_TX6 =               0    |IFG_TX8 =               0    |IFG_TX10 =               0    |
 INFO  IFG_TX1 good bytes       =               0    |IFG_TX3 =               0    |IFG_TX5 =               0    |IFG_TX7 =               0    |IFG_TX9 =               0    |IFG_TX11 =               0    |
 INFO  (*) = counter overflow
-Output for asic1:
+
+======== asic1 =========
+
 INFO  Total Forwarding lookup errors (Fwd-destination==20'h0 or DSP==0): packets = 8    , bytes = 992    
 INFO  Total Forwarding drop counter (DSP==1): packets = 21436    , bytes = 2550722    
 INFO  NPU_HOST PktsOut=     21432    , PktsIn (from TXPP)=         0    
@@ -876,8 +895,10 @@ INFO  IFG_TX0 good bytes       =               0    |IFG_TX2 =               0  
 INFO  IFG_TX1 good bytes       =               0    |IFG_TX3 =               0    |IFG_TX5 =               0    |IFG_TX7 =               0    |IFG_TX9 =               0    |IFG_TX11 =               0    |
 INFO  (*) = counter overflow
 
-Output for LINE-CARD1:
-Output for asic0:
+======= LINE-CARD1 ========
+
+======== asic0 =========
+
 INFO  Total Forwarding lookup errors (Fwd-destination==20'h0 or DSP==0): packets = 8    , bytes = 952    
 INFO  Total Forwarding drop counter (DSP==1): packets = 21484    , bytes = 2556434    
 INFO  NPU_HOST PktsOut=     21480    , PktsIn (from TXPP)=         0    
@@ -909,7 +930,9 @@ INFO  IFG_TX1 good packets     =               0    |IFG_TX3 =               0  
 INFO  IFG_TX0 good bytes       =               0    |IFG_TX2 =               0    |IFG_TX4 =               0    |IFG_TX6 =               0    |IFG_TX8 =               0    |IFG_TX10 =               0    |
 INFO  IFG_TX1 good bytes       =               0    |IFG_TX3 =               0    |IFG_TX5 =               0    |IFG_TX7 =               0    |IFG_TX9 =               0    |IFG_TX11 =               0    |
 INFO  (*) = counter overflow
-Output for asic1:
+
+======== asic0 =========
+
 INFO  Total Forwarding lookup errors (Fwd-destination==20'h0 or DSP==0): packets = 7    , bytes = 898    
 INFO  Total Forwarding drop counter (DSP==1): packets = 21460    , bytes = 2553578    
 INFO  NPU_HOST PktsOut=     21456    , PktsIn (from TXPP)=         0    
@@ -948,8 +971,10 @@ cisco@sfd-01:~$
 The following are show command output of "show platform npu counters" command as executed on LC. They can be executed for a specific namespace / asic-id mentioned, or no specific namespace / asic-id mentioned. But, they can not be executed with -l option (location option) mentioned. The location option is valid only for RP and not for Linecards. 
 
 ```
+
 cisco@sfd-lc0:~$ 
 cisco@sfd-lc0:~$ sudo show platform npu counters -n asic0
+
 INFO  Total Forwarding drop counter (DSP==1): packets = 9840    , bytes = 1170960    
 INFO  NPU_HOST PktsOut=      9840    , PktsIn (from TXPP)=         0    
 INFO  ___________________Slice0_____________________|____________Slice1___________|___________Slice2____________|___________Slice3____________|___________Slice4____________|_____________Slice5___________|
@@ -987,7 +1012,8 @@ cisco@sfd-lc0:~$
 cisco@sfd-lc0:~$ 
 cisco@sfd-lc0:~$ sudo show platform npu counters
 
-Output for asic0:
+======== asic0 =========
+
 INFO  Total Forwarding drop counter (DSP==1): packets = 2520    , bytes = 299880    
 INFO  NPU_HOST PktsOut=      2520    , PktsIn (from TXPP)=         0    
 INFO  ___________________Slice0_____________________|____________Slice1___________|___________Slice2____________|___________Slice3____________|___________Slice4____________|_____________Slice5___________|
@@ -1018,7 +1044,9 @@ INFO  IFG_TX1 good packets     =               0    |IFG_TX3 =               0  
 INFO  IFG_TX0 good bytes       =               0    |IFG_TX2 =               0    |IFG_TX4 =               0    |IFG_TX6 =               0    |IFG_TX8 =               0    |IFG_TX10 =               0    |
 INFO  IFG_TX1 good bytes       =               0    |IFG_TX3 =               0    |IFG_TX5 =               0    |IFG_TX7 =               0    |IFG_TX9 =               0    |IFG_TX11 =               0    |
 INFO  (*) = counter overflow
-Output for asic1:
+
+======== asic1 =========
+
 INFO  Total Forwarding drop counter (DSP==1): packets = 12336    , bytes = 1467984    
 INFO  NPU_HOST PktsOut=     12336    , PktsIn (from TXPP)=         0    
 INFO  ___________________Slice0_____________________|____________Slice1___________|___________Slice2____________|___________Slice3____________|___________Slice4____________|_____________Slice5___________|

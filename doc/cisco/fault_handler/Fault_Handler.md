@@ -14,6 +14,7 @@ Handling of the recorded fault and logging into OBFL
 | 1.3 | 05/30/2024 | Rajan Narayanan | Included fault policy section and addressed review comments |
 | 1.4 | 02/10/2025 | Nanma Purushotam | Added automation test suite and T2 chassis integration validation results |
 | 1.5 | 02/18/2026 | Keith Lu | Improvement |
+| 1.6 | 03/20/2026 | Keith Lu | added fan sensor fault mgmt |
 
 ## Table of Contents
 
@@ -54,6 +55,8 @@ Handling of the recorded fault and logging into OBFL
 - Figure 1 Fault Propagation
 - Figure 2 Fault handler flow
 - Figure 3 Obfl flow
+- Figure 4 Upstream thermalctld concept
+- Figure 5 fantray_structure
 
 ## 1 Problem Definition
 
@@ -118,21 +121,185 @@ This platform script periodically scans all the temperature, voltage and current
 
 This service keeps track of the reported faults including the timestamp to avoid redundant reporting. Whenever the service restarts or the platform reboots, this service will re-sync with the FAULT_INFO table from stateDB and resume it's monitoring service.
 
-This service filters the sensor entities with warning status as "True" from the stateDB and creates a fault entry under FAULT_INFO table. Below is a temp sensor fault entry exceeding the threshold
+**Upstream thermalctld concept**
+
+![Figure 4 Upstream thermalctld concept](upstream_thermalctld_concept.png)
+
+The following interaction flow shows `thermalctld` updating temperature, voltage, current, and fan sensor information in STATE_DB, while Health Sensor Monitoring consumes those entries and publishes FAULT_INFO events through the platform monitoring routines below.
+
+![Thermalctld and health sensor monitoring interaction](thermalctld_health_sensor_monitoring_flow.png)
+
+
 
 ```
-"FAULT_INFO|CPU_U17_PVCCIN_TEMP": {
-    "expireat": 1715259733.6082292,
-    "ttl": -0.001,
-    "type": "hash",
-    "value": {
-        "resource": "TempSensor",
-        "type_id": "TEMPERATURE_EXCEEDED",
-        "severity": "MAJOR",
-        "action": "RAISE",
-        "time-created": "20240509 12:59:50",
-        "text": "temp value 37.375 Exceeded major threshold 35"
-    }
+monitor_and_report_temp_sensor()
+monitor_and_report_voltage_sensor()
+monitor_and_report_current_sensor()
+monitor_and_report_fan_sensor()
+```
+
+**Detection and validation flow**
+
+(1) TEMP/VOLTAGE/CURRENT sensor fault monitoring
+
+```
+IF (threshold_exceeded AND warning_status == 'true') THEN
+    validate sensor payload
+    IF valid THEN
+        evaluate duplicate/severity state
+        publish fault event
+    END IF
+END IF
+```
+
+- Example sensor payload (`TEMPERATURE_INFO|PSU1 HSNK_Temp`):
+
+```
+sonic-db-cli STATE_DB HGETALL 'TEMPERATURE_INFO|PSU1 HSNK_Temp'
+"TEMPERATURE_INFO|PSU1 HSNK_Temp": {
+    "temperature": "91.0",
+    "minimum_temperature": "56.0",
+    "maximum_temperature": "58.0",
+    "high_threshold": "85.0",
+    "low_threshold": "-5.0",
+    "warning_status": "True",
+    "critical_high_threshold": "90.0",
+    "critical_low_threshold": "-10.0",
+    "is_replaceable": "False",
+    "timestamp": "20250821 19:55:37"
+}
+```
+
+Failure Temp sample (`temperature` = `91.0`):
+
+```
+"FAULT_INFO_TABLE|PSU1 HSNK_Temp": {
+    "temperature": "91.0",
+    "minimum_temperature": "56.0",
+    "maximum_temperature": "58.0",
+    "high_threshold": "85.0",
+    "low_threshold": "-5.0",
+    "warning_status": "True",
+    "critical_high_threshold": "90.0",
+    "critical_low_threshold": "-10.0",
+    "is_replaceable": "False",
+    "timestamp": "20250821 19:55:37",
+    "severity": "CRITICAL",
+    "action": "RAISE",
+    "component": "TempSensor",
+    "type_id": "TEMPERATURE_EXCEEDED",
+    "comment": "91.0"
+}
+```
+
+Validation includes:
+
+- any N/A or missing value handling with state tracking
+- numeric conversion and sanity bounds checks
+- threshold ordering checks (critical_high >= high >= low >= critical_low)
+- recovery logging when a sensor returns from invalid/N/A to valid state
+
+<p>&nbsp;</p>
+
+(2) FAN sensor fault monitoring
+
+Fan fault judgement logic as upstream thermalctld refresh flow:
+presence controls whether checks apply, and status controls raise/clear behavior.
+CRITICAL fault: not presence or direction is not intake
+MARJOR   fault: upstream logic below
+
+Upstream source:
+- https://wwwin-github.cisco.com/whitebox/sonic-platform-daemons/blob/master/sonic-thermalctld/scripts/thermalctld#L289
+- https://wwwin-github.cisco.com/whitebox/sonic-platform-daemons/blob/master/sonic-thermalctld/scripts/thermalctld#L159
+
+FAN redis format in STATE_DB:
+
+Fan hardware context (fan tray and connector layout):
+
+![Fantray structure](fantray_structure.png)
+
+```
+"PHYSICAL_ENTITY_INFO|fantray0": {
+    "position_in_parent": "1",
+    "parent_name": "chassis 1"
+}
+
+"PHYSICAL_ENTITY_INFO|fantray0.fan0": {
+    "position_in_parent": "1",
+    "parent_name": "fantray0"
+}
+
+"FAN_DRAWER_INFO|fantray0": {
+    "presence": "True",
+    "model": "8808-FAN",
+    "serial": "FOC2430N1XJ",
+    "status": "True",
+    "is_replaceable": "True",
+    "led_status": "green"
+}
+```
+
+Normal fan sample (`status` = `True`):
+
+```
+"FAN_INFO|fantray0.fan0": {
+    "presence": "True",
+    "drawer_name": "fantray0",
+    "model": "8808-FAN",
+    "serial": "FOC2430N1XJ",
+    "status": "True",
+    "direction": "intake",
+    "speed": "90",
+    "speed_target": "100",
+    "is_under_speed": "False",
+    "is_over_speed": "False",
+    "is_replaceable": "False",
+    "timestamp": "20260320 19:03:55",
+    "led_status": "green"
+}
+```
+
+Failure fan sample (`status` = `False`):
+
+```
+"FAN_INFO|FAN_SENSOR_D": {
+    "presence": "True",
+    "drawer_name": "fantray3",
+    "model": "8808-FAN",
+    "serial": "FTSJJGDVNV3",
+    "status": "False",
+    "direction": "intake",
+    "speed": "0",
+    "speed_target": "100",
+    "is_under_speed": "True",
+    "is_over_speed": "False",
+    "is_replaceable": "False",
+    "led_status": "red",
+    "timestamp": "20260306 21:51:48"
+}
+```
+
+```
+"FAULT_INFO_TABLE|FAN_SENSOR_D": {
+    "direction": "intake",
+    "drawer_name": "fantray3",
+    "is_over_speed": "False",
+    "is_replaceable": "False",
+    "is_under_speed": "True",
+    "led_status": "red",
+    "model": "8808-FAN",
+    "presence": "True",
+    "serial": "FTSJJGDVNV3",
+    "speed": "0",
+    "speed_target": "100",
+    "status": "False",
+    "timestamp": "20260306 21:51:48",
+    "warning_status": "True",
+    "severity": "CRITICAL",
+    "action": "RAISE",
+    "component": "FanSensor",
+    "type_id": "FAN_FAULT",
+    "comment": "status=False, speed=0"
 }
 ```
 
@@ -175,43 +342,7 @@ Every platform should provide information about the components that need to be m
 
 #### 2.2.4 Fault Filtering, Validation, and Duplicate Severity Tracking
 
-Fault monitoring applies strict filtering, defensive validation, and duplicate-aware state tracking before publishing events.
-
-**Detection and validation flow**
-
-```
-IF (threshold_exceeded AND warning_status == 'true') THEN
-    validate sensor payload
-    IF valid THEN
-        evaluate duplicate/severity state
-        publish fault event
-    END IF
-END IF
-```
-
-Validation includes:
-- Example sensor payload (`TEMPERATURE_INFO|PSU1 HSNK_Temp`):
-
-```
-sonic-db-cli STATE_DB HGETALL 'TEMPERATURE_INFO|PSU1 HSNK_Temp'
-"TEMPERATURE_INFO|PSU1 HSNK_Temp": {
-    "temperature": "57.0",
-    "minimum_temperature": "56.0",
-    "maximum_temperature": "58.0",
-    "high_threshold": "85.0",
-    "low_threshold": "-5.0",
-    "warning_status": "False",
-    "critical_high_threshold": "90.0",
-    "critical_low_threshold": "-10.0",
-    "is_replaceable": "False",
-    "timestamp": "20250821 19:55:37"
-}
-```
-
-- any N/A or missing value handling with state tracking
-- numeric conversion and sanity bounds checks
-- threshold ordering checks (critical_high >= high >= low >= critical_low)
-- recovery logging when a sensor returns from invalid/N/A to valid state
+Fault monitoring applies duplicate-aware state tracking before publishing repeated events.
 
 **Duplicate and severity handling**
 
@@ -325,6 +456,20 @@ Fault policy table provides the flexibility to handle faults in a platform speci
 }
 ```
 
+Policy match verification from faulthandler:
+
+```
+admin@sfd-vt2-sup:/mnt/obfl$ tail -n 20 /var/log/faulthandler.log
+INFO - POLICY MATCHED! Entry 1: {'type': 'TEMPERATURE_EXCEEDED', 'severity': 'MAJOR', 'action': ['obfl']}
+INFO - POLICY MATCHED! Entry 2: {'type': 'TEMPERATURE_EXCEEDED', 'severity': 'CRITICAL', 'action': ['obfl']}
+INFO - POLICY MATCHED! Entry 3: {'type': 'VOLTAGE_EXCEEDED', 'severity': 'MAJOR', 'action': ['obfl']}
+INFO - POLICY MATCHED! Entry 4: {'type': 'VOLTAGE_EXCEEDED', 'severity': 'CRITICAL', 'action': ['obfl']}
+INFO - POLICY MATCHED! Entry 5: {'type': 'CURRENT_EXCEEDED', 'severity': 'MAJOR', 'action': ['obfl']}
+INFO - POLICY MATCHED! Entry 6: {'type': 'CURRENT_EXCEEDED', 'severity': 'CRITICAL', 'action': ['obfl']}
+INFO - POLICY MATCHED! Entry 7: {'type': 'FAN_FAULT', 'severity': 'MAJOR', 'action': ['obfl']}
+INFO - POLICY MATCHED! Entry 8: {'type': 'FAN_FAULT', 'severity': 'CRITICAL', 'action': ['obfl']}
+```
+
 **Sample fault_policy.json**
 
 ```json
@@ -367,6 +512,16 @@ Fault policy table provides the flexibility to handle faults in a platform speci
                 "type": "CURRENT_EXCEEDED",
                 "severity": "CRITICAL",
                 "action": ["obfl"]
+            },
+            {
+                "type": "FAN_FAULT",
+                "severity": "MAJOR",
+                "action": ["obfl"]
+            },
+            {
+                "type": "FAN_FAULT",
+                "severity": "CRITICAL",
+                "action": ["obfl"]
             }
         ]
     }
@@ -382,7 +537,7 @@ Users can extend this list based on the alarm type supported by the platform.
 - TEMPERATURE_EXCEEDED
 - VOLTAGE_EXCEEDED
 - CURRENT_EXCEEDED
-- MISSING_FAN
+- FAN_FAULT
 - MISSING_PSU
 
 **severity**
@@ -590,6 +745,7 @@ Test suites will be developed for sonic-mgmt to cover full functionality and uni
 | TH-02 | Recovery Bands | Threshold edges: clear only after recovery bands satisfied. |
 | TH-03 | Voltage Thresholds | Voltage thresholds (major/critical) mirror temperature behavior. |
 | TH-04 | Current Thresholds | Current thresholds (major/critical) mirror temperature behavior. |
+| TH-05 | Fan Thresholds | Current status (critical) true/false |
 
 #### OB – OBFL Tests
 
@@ -619,6 +775,35 @@ Test suites will be developed for sonic-mgmt to cover full functionality and uni
 | MT-01 | Multi-Sensor Faults | Multiple sensors breach simultaneously → independent faults raised and mapped action taken; |
 
 #### Logs
+
+```
+/mnt/obfl$ tail -n 20 alarms.txt
+
+individaul fault:
+DECLARE  CRITICAL  VOLTAGE_EXCEEDED          VOLT_SENSOR_A               14401mV
+DECLARE  MAJOR     VOLTAGE_EXCEEDED          VOLT_SENSOR_A               13801mV
+DECLARE  CRITICAL  VOLTAGE_EXCEEDED          VOLT_SENSOR_A               7999mV
+CLEAR              VOLTAGE_EXCEEDED          VOLT_SENSOR_A
+DECLARE  CRITICAL  CURRENT_EXCEEDED          CURR_SENSOR_A               9001mA
+DECLARE  MAJOR     CURRENT_EXCEEDED          CURR_SENSOR_A               7001mA
+DECLARE  CRITICAL  CURRENT_EXCEEDED          CURR_SENSOR_A               999mA
+CLEAR              CURRENT_EXCEEDED          CURR_SENSOR_A
+
+multiple faults:
+DECLARE  CRITICAL  TEMPERATURE_EXCEEDED      TEMP_SENSOR_B               106.0
+DECLARE  CRITICAL  VOLTAGE_EXCEEDED          VOLT_SENSOR_B               14401mV
+DECLARE  CRITICAL  CURRENT_EXCEEDED          CURR_SENSOR_B               9001mA
+DECLARE  MAJOR     TEMPERATURE_EXCEEDED      TEMP_SENSOR_B               101.0
+DECLARE  MAJOR     VOLTAGE_EXCEEDED          VOLT_SENSOR_B               13801mV
+DECLARE  MAJOR     CURRENT_EXCEEDED          CURR_SENSOR_B               7001mA
+CLEAR              TEMPERATURE_EXCEEDED      TEMP_SENSOR_B
+CLEAR              VOLTAGE_EXCEEDED          VOLT_SENSOR_B
+CLEAR              CURRENT_EXCEEDED          CURR_SENSOR_B
+
+fan fault:
+DECLARE  CRITICAL  FAN_FAULT                 FAN_SENSOR_D                status=False,speed=0
+CLEAR              FAN_FAULT                 FAN_SENSOR_D
+```
 
 | ID | Name | Description |
 |----|----|------------|
@@ -674,5 +859,6 @@ This section list few observation from the current design.
 - https://github.com/sonic-net/SONiC/blob/master/doc/system_health_monitoring/system-health-HLD.md
 - https://github.com/sonic-net/SONiC/blob/master/doc/event-alarm-framework/event-alarm-framework.md
 - https://github.com/sonic-net/SONiC/blob/ba5dd460469b103c23c31bfc6fbb5f3837c1b657/doc/fault_management/fault_mgmt_infra_HLD.md
+- https://wwwin-github.cisco.com/whitebox/sonic-platform-daemons/blob/master/sonic-thermalctld/scripts/thermalctld
 
 ---

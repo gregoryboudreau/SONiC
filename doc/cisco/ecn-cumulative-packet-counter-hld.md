@@ -21,12 +21,14 @@
   - [Testing Requirements/Design](#testing-requirementsdesign)
     - [Unit Test cases](#unit-test-cases)
     - [System Test cases](#system-test-cases)
+  - [Open/Action Items](#openaction-items)
 
 ## Revision
 
 | Rev |     Date    |       Author       | Change Description                |
 |:---:|:-----------:|:------------------:|-----------------------------------|
 | 0.1 | 12/15/2025  |   Zhixin Zhu       | Initial version                   |
+| 0.2 | 03/25/2026  |   Zhixin Zhu       | Add action items                  |
 
 ## Scope
 
@@ -177,3 +179,8 @@ There are no impact to warmboot or fastboot.
 
 ### System Test cases
 * New sonic-mgmt(PTF) ecn wred statistics summary testcase will be created to verify the statistics summary on supported platforms.
+
+## Open/Action Items
+- T2 bug on the original CLI show queue wredcounters (MIGSOFTWAR-34600)
+- SAI API sai_query_stats_capability not implemented (MIGSOFTWAR-33183)
+- Consider counter overflow in test cases

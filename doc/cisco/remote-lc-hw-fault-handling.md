@@ -277,9 +277,155 @@ Additional interrupt status registers for other fault types
 
 Supporting LC- Vanguard, Lancer for now
 
-## 6. Testing Strategy
-Unit tests and fault injection tests to cover the following:
-- Specific Fault Simulation 
-- Detection Verification 
-- Logging and Error Recovery 
+### 5.4 Implementation Details
 
+The implementation preserves the design of using the P2PM general-purpose
+interrupt path for remote LC hardware fault notification. The RP receives the
+remote LC interrupt indication through the P2PM master interrupt path, while the
+detailed fault identity is decoded from the LC-side `misc_intrsToRP` interrupt
+status registers.
+
+In the implemented flow, the remote LC hardware fault path connects to the
+existing SONiC platform fault infrastructure. The kernel owns hardware interrupt
+decode and uevent generation, and platform user space owns fault reporting,
+policy matching, and alarm actions.
+
+The implementation is split across BSP, kernel, and platform user space:
+
+| Area | Implementation responsibility |
+|------|-------------------------------|
+| LC hardware | Latches the remote hardware event in `misc_intrsToRP` interrupt status registers |
+| P2PM hardware path | Carries one of the 8 general-purpose interrupt indications from LC to RP |
+| BSP - ACPI | Describes remote LC interrupt-capable devices and maps interrupt bits to fault names |
+| RP kernel driver | Identifies the interrupt source, reads remote LC interrupt status, clears and re-enables interrupts, and emits a named uevent |
+| Platform user space | Converts kernel uevents into SONiC fault records |
+| Fault policy | Applies OBFL, syslog, and other configured actions |
+
+```text
+misc-intrs-lc kernel uevent
+        |
+        v
+platform-udev-monitor.service
+        |
+        v
+FAULT_INFO_TABLE in STATE_DB
+        |
+        v
+platform-fault-handler.service
+        |
+        v
+OBFL / syslog / configured policy actions
+```
+
+The major software components are:
+
+| Layer | Component | Responsibility |
+|-------|-----------|----------------|
+| BSP - ACPI<br>(Enhanced) | `misc-intrs-lc` | Defines LC interrupt status bit names exposed to the RP |
+| BSP - ACPI<br>(Enhanced) | `p2pm-m-rmt` | Enables the existing remote P2PM infrastructure for selected remote LC x86 FPGA access |
+| BSP - ACPI<br>(New) | `info-x86-lc` | Exposes remote LC x86 FPGA info through a dedicated child device |
+| BSP - ACPI<br>(New) | `x86-ctl-lc` | Exposes remote LC x86 control/status needed for CATERR validation |
+| Kernel<br>(Enhanced) | `cisco-fpga-p2pm-m` | Handles RP-side P2PM master interrupt status |
+| Kernel<br>(Enhanced) | `cisco-fpga-p2pm-m-slot` | Resolves the remote slot/card source and dispatches to remote child handlers |
+| Kernel<br>(Enhanced) | `cisco-fpga-misc-intrs` | Reads LC interrupt status, maps bits to names, clears handled bits, and emits uevents |
+| Kernel<br>(Enhanced) | `cisco-fpga-p2pm-m-rmt` | Exposes selected remote FPGA children after the P2PM remote link is ready |
+| Kernel<br>(New) | `cisco-fpga-x86-ctl` | Exposes remote x86 control/status fields such as `cpu_ierr_l` |
+| User space<br>(Enhanced) | `platform-udev-monitor.service` | Consumes `misc-intrs-lc` uevents |
+| User space<br>(New) | `InterruptFaultReporter` | Writes interrupt faults into `FAULT_INFO_TABLE` |
+| User space<br>(Enhanced) | `platform-fault-handler.service` | Applies `fault_policy.json` actions such as OBFL and syslog |
+
+The interrupt name reported to user space is provided by BSP ACPI
+`intSts*_bits` definitions.
+
+Supported interrupt names include:
+
+- `ZONE0_FAULT0`
+- `ZONE12_FAULT0`
+- `ZONE12_FAULT1`
+- `ZONE12_POWERED_OFF`
+- `ZONE3_FAULT0`
+- `ZONE3_FAULT1`
+- `ZONE3_POWERED_OFF`
+- `BIOS_BOOT_INVALID`
+- `CPU_READY_FALLING_EDGE`
+
+On remote LC removal, active faults associated with that LC are cleared by
+writing matching `FAULT_INFO_TABLE` entries with `action=CLEAR`.
+
+CATERR handling is implemented using the same generic remote interrupt path.
+The LC reports `CPU_READY_FALLING_EDGE`; user space then validates the remote
+x86 status through `x86-ctl-lc` and reports `CPU_IERR_L` only when
+`cpu_ierr_l` is asserted low.
+
+### 5.5 Implemented Flow
+
+The end-to-end implemented flow is shown below:
+
+![Remote LC implemented interrupt flow](images/remote-hw-infra/remote-lc-implemented-flow-swimlane-v3.png)
+
+#### 5.5.1 Example Fault reported by this feature
+
+##### Kernel
+
+![Kernel fault report example](images/remote-hw-infra/remote-lc-fault-example-kernel.png)
+
+##### User Space
+
+![User space fault report example](images/remote-hw-infra/remote-lc-fault-example-user-space.png)
+
+#### 5.5.2 CATERR-Specific Flow
+
+CATERR handling uses the same generic remote interrupt path, with one
+additional validation step to avoid false positives during normal LC reboot or
+shutdown.
+
+```text
+CPU_READY_FALLING_EDGE interrupt
+        |
+        v
+platform-udev-monitor.service
+        |
+        v
+Read remote x86-ctl-lc cpu_ierr_l
+        |
+        +-- cpu_ierr_l == 0  --> report CPU_IERR_L
+        |
+        +-- cpu_ierr_l == 1  --> ignore
+        |
+        +-- node unavailable --> ignore as reboot/shutdown transition
+```
+
+For CATERR, the LC first reports `CPU_READY_FALLING_EDGE`. User space then
+reads the remote LC x86 control node:
+
+```text
+/sys/bus/platform/devices/p2pm-m/p2pm-m-slot.<pd>/p2pm-m-rmt.<pd>/x86-ctl-lc.<pd>/cpu_ierr_l
+```
+
+Only when `cpu_ierr_l == 0`, meaning the active-low CPU IERR signal is
+asserted, does user space raise the reportable fault `CPU_IERR_L`. This prevents
+normal LC reboot or shutdown transitions from being reported as CATERR faults.
+
+## 6. Testing Strategy
+Automated SpyTest coverage validates this feature from the distributed RP. The
+tests cover remote LC hardware discovery and the end-to-end interrupt fault
+reporting path.
+
+| Test case | Coverage |
+|-----------|----------|
+| `test_ft_platform_services` | Verifies `platform-udev-monitor.service` and `platform-fault-handler.service` are active before running interrupt fault tests |
+| `test_ft_remote_lc_x86_info_and_ctl` | Verifies RP-side remote LC x86 sysfs exposure, including `info-x86-lc` `fpga_id` and `version`, and `x86-ctl-lc` `cpu_ierr_l` |
+| `test_ft_remote_lc_npu_shutdown_interrupt` | Triggers LC NPU shutdown and verifies `ZONE3_POWERED_OFF` is reported in `FAULT_INFO_TABLE` and `show platform obfl alarms` |
+| `test_ft_remote_lc_npu_interrupt_after_service_restart` | Restarts the platform services and verifies a later LC NPU shutdown interrupt is still reported |
+| `test_ft_remote_lc_reboot_interrupts` | Shuts down an online LC, verifies `ZONE3_POWERED_OFF` and `ZONE12_POWERED_OFF` reporting, reloads the LC from the RP, verifies faults clear, and verifies `CPU_READY_FALLING_EDGE` does not raise `CPU_IERR_L` when `cpu_ierr_l=1` |
+
+Validation covered:
+
+- Remote LC discovery from the RP through `p2pm-m-slot.<pd>` and `p2pm-m-rmt.<pd>`
+- Remote x86 status reads through `info-x86-lc.<pd>` and `x86-ctl-lc.<pd>`
+- Fault `RAISE` entries in `FAULT_INFO_TABLE`
+- Fault severity matching against `fault_policy.json`
+- OBFL alarm generation through `show platform obfl alarms`
+- Fault `CLEAR` entries and OBFL alarm removal after LC recovery
+- Service restart resilience for `platform-udev-monitor.service` and `platform-fault-handler.service`
+- CATERR false-positive prevention during LC reboot when `cpu_ierr_l=1`

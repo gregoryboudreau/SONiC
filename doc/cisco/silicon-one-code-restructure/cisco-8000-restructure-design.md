@@ -29,7 +29,7 @@ This document provides detailed information about the restructuring of Cisco-800
 
 # Scope
 
-Restructure platform code distribution between `sonic-buildimage` and `platform-cisco-8000` repositories to:
+Restructure platform code distribution between `sonic-buildimage` and `vendor-platform-layer` repositories to:
 - Move common, non-proprietary code into `sonic-buildimage`
 - Relocate build configuration files to enable multi-stream branch strategy
 - Establish foundation for community contributions while protecting proprietary code
@@ -40,10 +40,10 @@ Out of scope:
 
 ## Problem Statement
 
-The current Cisco-8000 platform code resides entirely in the external `platform-cisco-8000` repository, which is cloned during `make configure PLATFORM=cisco-8000`. This structure creates three issues:
+The current Cisco-8000 platform code resides entirely in the external `vendor-platform-layer` repository, which is cloned during `make configure PLATFORM=cisco-8000`. This structure creates three issues:
 
 1. Common non-proprietary code lacks protection from upstream SONiC changes, causing build failures
-2. Platform-specific files (`rules.mk`, `versions.mk`) in `platform-cisco-8000` prevent multiple SONiC streams from sharing the same platform branch when artifact versions differ
+2. Platform-specific files (`rules.mk`, `versions.mk`) in `vendor-platform-layer` prevent multiple SONiC streams from sharing the same platform branch when artifact versions differ
 3. No mechanism exists for staged community contributions of Cisco code
 
 ## Current Structure
@@ -54,13 +54,13 @@ The current Cisco-8000 platform code resides entirely in the external `platform-
 sonic-buildimage/
 ├── platform/
 │   └── cisco-8000/          # Created during 'make configure'
-│       └── (cloned from platform-cisco-8000)
+│       └── (cloned from vendor-platform-layer)
 └── device/
     └── cisco/                # Created during 'make configure' as symlink
-        └── (cloned from platform-cisco-8000, set as symlink)
+        └── (cloned from vendor-platform-layer, set as symlink)
 
 
-platform-cisco-8000/          # External repository
+vendor-platform-layer/          # External repository
 ├── sonic-platform-module-cisco/
 │   ├── Cisco Platform plugins for SONiC_platform APIs
 │   ├── Leaba and other kmod build rules
@@ -91,16 +91,16 @@ platform-cisco-8000/          # External repository
 ### Existing Build Process
 
 During `make configure PLATFORM=cisco-8000`:
-1. `cisco-8000.ini` file is read from `platform-cisco-8000` repository
+1. `cisco-8000.ini` file is read from `vendor-platform-layer` repository
 2. `platform/cisco-8000` directory is created in `sonic-buildimage`
-3. `platform-cisco-8000` repository is cloned into this directory
+3. `vendor-platform-layer` repository is cloned into this directory
 4. Symlink created: `device/cisco-8000` → `platform/cisco-8000/device/`
 
 ### Current Issues
 
 **Build Fragility**: Docker build rules (`docker-syncd-cisco`, `docker-gbsyncd-cisco`) in external repository are vulnerable to upstream SONiC changes.
 
-**Version Management**: `versions.mk` location in `platform-cisco-8000` forces all SONiC streams to use identical artifact versions, blocking independent stream development.
+**Version Management**: `versions.mk` location in `vendor-platform-layer` forces all SONiC streams to use identical artifact versions, blocking independent stream development.
 
 **Community Contribution**: No mechanism to contribute approved platform code to SONiC community while maintaining proprietary code separation.
 
@@ -113,13 +113,13 @@ sonic-buildimage/
 ├── platform/
 │   ├── checkout/
 │   ├── cisco/              
-│   │   ├── cisco.ini       # Pulls platform-cisco-8000
+│   │   ├── cisco.ini       # Pulls vendor-platform-layer
 │   │   ├── rules.mk
 │   │   ├── versions.mk
 │   │   └── docker rules and directories/
 │   │   |    ├── syncd-cisco and syncd-cisco-rpc
 │   │   |    └── gbsyncd-cisco
-│   │   |--platform-cisco-8000/             # External repository (cloned as a subdir)
+│   │   |--vendor-platform-layer/             # External repository (cloned as a subdir)
 │   │       ├── sonic-platform-module-cisco/   # Cisco Platform plugins for SONiC_platform APIs
 │   │       │   ├── Leaba and other kmod build rules
 │   │       │   ├── Cisco platform common service Unit files
@@ -157,22 +157,22 @@ sonic-buildimage/
 - Read during `make configure PLATFORM=cisco-8000`
 - Specifies repository URL, branch, and clone target path
 - Creates `platform/cisco-8000` directory in `sonic-buildimage`
-- Clones entire `platform-cisco-8000` repository into this directory
+- Clones entire `vendor-platform-layer` repository into this directory
 
 **New Behavior**:
 - `cisco.ini` file is created in `sonic-buildimage/platform/cisco/`
 - Read during `make configure PLATFORM=cisco`
-- Creates `platform/cisco/platform-cisco-8000/` subdirectory
-- Clones `platform-cisco-8000` repository into subdirectory
+- Creates `platform/cisco/vendor-platform-layer/` subdirectory
+- Clones `vendor-platform-layer` repository into subdirectory
 
 **Configuration**:
 
 `cisco.ini`:
 ```ini
 [module]
-url = https://github.com/Cisco-8000-sonic/platform-cisco-8000.git
+url = <vendor-platform-layer-repository-url>
 ref = master
-target_path = platform/cisco/platform-cisco-8000
+target_path = platform/cisco/vendor-platform-layer
 ```
 
 **Build Command Change**:
@@ -184,7 +184,7 @@ target_path = platform/cisco/platform-cisco-8000
 - New: `platform/cisco/` (contains both community code and cloned repo)
   - `platform/cisco/docker-syncd-cisco/` (community code)
   - `platform/cisco/rules.mk` (community code)
-  - `platform/cisco/platform-cisco-8000/` (cloned proprietary repo)
+  - `platform/cisco/vendor-platform-layer/` (cloned proprietary repo)
 
 **Rationale**: 
 - Separates platform name (Cisco ASIC family) from vendor-specific repository
@@ -193,7 +193,7 @@ target_path = platform/cisco/platform-cisco-8000
 
 #### 2. Docker Syncd Binaries and Scripts
 
-**Current Location**: `platform-cisco-8000/docker-syncd-cisco/`
+**Current Location**: `vendor-platform-layer/docker-syncd-cisco/`
 
 **Action**: Move platform-specific binaries and scripts to `sonic-platform-module-cisco` debian package.
 
@@ -219,11 +219,11 @@ target_path = platform/cisco/platform-cisco-8000
 **Installation Path for scripts**: 
   - show_ports.py, show_transceivers.py, show_transceivers_detail.py, show_mac_state.py, etc.: `/usr/lib/cisco/pylib/leaba/`
 
-**Rationale**: Separates proprietary binaries from docker build rules, allowing docker rules to remain in `sonic-buildimage` while binaries and Cisco scripts stay in platform-cisco-8000 repository.
+**Rationale**: Separates proprietary binaries from docker build rules, allowing docker rules to remain in `sonic-buildimage` while binaries and Cisco scripts stay in vendor-platform-layer repository.
 
 #### 3. Platform Docker Rules
 
-**Current Location**: `platform-cisco-8000 repo docker-syncd-cisco, docker-gbsyncd-cisco`
+**Current Location**: `vendor-platform-layer repo docker-syncd-cisco, docker-gbsyncd-cisco`
 
 **New Location**: `sonic-buildimage/platform/cisco`
 
@@ -236,7 +236,7 @@ target_path = platform/cisco/platform-cisco-8000
 
 #### 4. Platform Configuration Files
 
-**Current Location**: `platform-cisco-8000/` repo
+**Current Location**: `vendor-platform-layer/` repo
 
 **New Location**: `sonic-buildimage/platform/cisco/`
 
@@ -245,11 +245,11 @@ target_path = platform/cisco/platform-cisco-8000
 - `versions.mk` - Artifact version definitions
 - other mk and dep files which are platform independent
 
-**Rationale**: Enables per-stream version management. Different SONiC streams can maintain independent `versions.mk` while sharing `platform-cisco-8000` branch.
+**Rationale**: Enables per-stream version management. Different SONiC streams can maintain independent `versions.mk` while sharing `vendor-platform-layer` branch.
 
 #### 5. Device Configuration
 
-**Current Location**: `platform-cisco-8000/device/`
+**Current Location**: `vendor-platform-layer/device/`
 
 **New Location**: `sonic-buildimage/device/cisco/`
 
@@ -271,10 +271,10 @@ The device configuration management follows a hybrid approach to balance communi
   - Standard device plugin scripts
   - Other device-specific config files
 - Files are maintained and updated directly in `sonic-buildimage` repository
-- Available for all builds without `platform-cisco-8000` access
+- Available for all builds without `vendor-platform-layer` access
 
-**Proprietary Platforms in `platform-cisco-8000`**:
-- Device folders containing Cisco-proprietary configurations remain in `platform-cisco-8000/device/` directory
+**Proprietary Platforms in `vendor-platform-layer`**:
+- Device folders containing Cisco-proprietary configurations remain in `vendor-platform-layer/device/` directory
 - These may include:
   - Proprietary device plugin scripts
   - Cisco-specific configuration parameters
@@ -283,26 +283,26 @@ The device configuration management follows a hybrid approach to balance communi
 
 **Build-Time Linking via `platform-setup`**:
 - During `make configure PLATFORM=cisco`, `platform-setup` rules execute
-- Creates symlinks from `sonic-buildimage/device/cisco/` to proprietary device folders in `platform-cisco-8000/device/`
+- Creates symlinks from `sonic-buildimage/device/cisco/` to proprietary device folders in `vendor-platform-layer/device/`
 - Example symlink creation:
   ```bash
   # In platform-setup rules
-  ln -sf $(PLATFORM_PATH)/platform-cisco-8000/device/x86_64-proprietary_platform \
+  ln -sf $(PLATFORM_PATH)/vendor-platform-layer/device/x86_64-proprietary_platform \
          $(PROJECT_ROOT)/device/cisco/x86_64-proprietary_platform
   ```
 - Symlinks make proprietary device configurations available during build without copying files
-- Maintains single source of truth in `platform-cisco-8000` for proprietary configs
+- Maintains single source of truth in `vendor-platform-layer` for proprietary configs
 
 **Cisco-Specific Scripts Protection**:
 - Device folders in `sonic-buildimage` may contain placeholder or stub scripts for proprietary functionality
-- Actual proprietary scripts remain in `platform-cisco-8000`
+- Actual proprietary scripts remain in `vendor-platform-layer`
 - During build or lazy install, proprietary scripts are:
   - Copied to appropriate runtime paths, or
-  - Symlinked from `platform-cisco-8000` location
+  - Symlinked from `vendor-platform-layer` location
 - Example: Device-specific initialization scripts that call proprietary SDK functions
 
 **Migration Path**:
-- Start with all device configurations in `platform-cisco-8000`
+- Start with all device configurations in `vendor-platform-layer`
 - Identify platforms approved for community contribution
 - Sanitize configurations to remove proprietary elements
 - Move approved platforms to `sonic-buildimage/device/cisco/`
@@ -316,7 +316,7 @@ Place in `sonic-buildimage` if:
 - Device scripts use only standard SONiC APIs
 - Cisco approves for community contribution
 
-Keep in `platform-cisco-8000` if:
+Keep in `vendor-platform-layer` if:
 - Platform is pre-release or under NDA
 - Configuration exposes proprietary SDK parameters
 - Scripts contain Cisco business logic
@@ -326,11 +326,11 @@ Keep in `platform-cisco-8000` if:
 
 #### 6. Platform Module
 
-**Current Location**: `platform-cisco-8000/sonic-platform-module-cisco/`
+**Current Location**: `vendor-platform-layer/sonic-platform-module-cisco/`
 
 **New Name**: `sonic-platform-module-cisco`
 
-**Location**: Remains in `platform-cisco-8000` repository
+**Location**: Remains in `vendor-platform-layer` repository
 
 **Future Enhancement**: Convert to prebuilt debian binary to reduce build time and enable binary releases.
 
@@ -346,18 +346,18 @@ make configure PLATFORM=cisco
 
 **Steps**:
 1. Read `sonic-buildimage/platform/cisco/cisco.ini`
-2. Clone `platform-cisco-8000` into `platform/cisco/platform-cisco-8000/`
+2. Clone `vendor-platform-layer` into `platform/cisco/vendor-platform-layer/`
 3. Execute `platform-setup` rules to create symlinks for proprietary device configurations
 
 
 #### Build Phase
 
-**With `platform-cisco-8000` Access**:
+**With `vendor-platform-layer` Access**:
 - Full Cisco binary image with all proprietary components
 - Platform module compiled from source
 - All device configurations available
 
-**Without `platform-cisco-8000` Access** (Community Validation):
+**Without `vendor-platform-layer` Access** (Community Validation):
 - Docker images build successfully (syncd, gbsyncd, rpc-syncd)
 - Device configurations limited to community-contributed platforms
 - No platform module debian package
@@ -365,9 +365,9 @@ make configure PLATFORM=cisco
 
 ### Authentication and Access
 
-**Customer Builds**: Require GitHub authentication to clone `platform-cisco-8000` repository during `make configure`.
+**Customer Builds**: Require GitHub authentication to clone `vendor-platform-layer` repository during `make configure`.
 
-**Community Builds**: Can build and validate docker images without `platform-cisco-8000` access, using only code in `sonic-buildimage`.
+**Community Builds**: Can build and validate docker images without `vendor-platform-layer` access, using only code in `sonic-buildimage`.
 
 ## Benefits
 
@@ -377,7 +377,7 @@ Common docker build rules in `sonic-buildimage` are validated by SONiC CI/CD, re
 
 ### 2. Multi-Stream Support
 
-`versions.mk` in `sonic-buildimage` allows different SONiC streams (e.g., 202205, 202305) to specify different artifact versions while sharing the same `platform-cisco-8000` branch.
+`versions.mk` in `sonic-buildimage` allows different SONiC streams (e.g., 202205, 202305) to specify different artifact versions while sharing the same `vendor-platform-layer` branch.
 
 ### 3. Community Engagement
 
@@ -390,7 +390,7 @@ Enables staged contribution of Cisco code to SONiC community:
 
 Provides base for customers to build Cisco images with community-available code. Customers can:
 - Build docker images using community code in `sonic-buildimage`
-- Add proprietary components via `platform-cisco-8000` access
+- Add proprietary components via `vendor-platform-layer` access
 - Use prebuilt debian packages for faster builds
 - Customize configurations for specific deployment needs 
 
@@ -409,9 +409,9 @@ This phase moves non-proprietary build infrastructure to `sonic-buildimage` and 
 
 **Docker Rules Migration**:
 1. Create `sonic-buildimage/platform/cisco/` directory
-2. Move `docker-syncd-cisco/` and `docker-gbsyncd-cisco/` directories from `platform-cisco-8000`
+2. Move `docker-syncd-cisco/` and `docker-gbsyncd-cisco/` directories from `vendor-platform-layer`
 3. Update Makefiles to reference new paths
-4. Validate docker builds with and without `platform-cisco-8000` access
+4. Validate docker builds with and without `vendor-platform-layer` access
 
 **Configuration Files Migration**:
 1. Move `rules.mk`, `versions.mk` to `sonic-buildimage/platform/cisco/`
@@ -420,7 +420,7 @@ This phase moves non-proprietary build infrastructure to `sonic-buildimage` and 
 4. Test multi-stream version management with different `versions.mk` per SONiC stream
 
 **Platform Module Refactoring**:
-1. Move `sonic-platform-module-cisco` to `sonic-platform-module-cisco` in `platform-cisco-8000`
+1. Move `sonic-platform-module-cisco` to `sonic-platform-module-cisco` in `vendor-platform-layer`
 2. Move syncd binaries (`dshell_client.py`, `puntpkthandler`) into module
 3. Move platform-specific python scripts to module (e.g., `show_ports.py`, `show_transceivers.py`)
 4. Update debian package to install binaries to `/opt/cisco/syncd/bin/`
@@ -429,7 +429,7 @@ This phase moves non-proprietary build infrastructure to `sonic-buildimage` and 
 7. Test lazy install functionality
 
 **Community Validation Setup**:
-1. Enable SONiC nightly builds without `platform-cisco-8000` access
+1. Enable SONiC nightly builds without `vendor-platform-layer` access
 2. Validate docker image builds (syncd, gbsyncd, rpc-syncd)
 3. Configure CI to detect upstream breakage
 4. Monitor build success rates
@@ -452,7 +452,7 @@ This phase converts platform modules to prebuilt debian packages to reduce build
 
 **Debian Packages**:
 1. `sonic-platform-cisco` - Platform drivers, APIs, and scripts
-2. `cisco-wb-bsp` - Board support package for hardware initialization
+2. `vendor-board-support-layer` - Board support package for hardware initialization
 3. `cisco-wb-fpd` - Field programmable device firmware management
 4. Other platform-specific debian packages as needed
 
@@ -507,7 +507,7 @@ The new build structure requires updates to CI/CD pipelines to support the restr
 
 ## Error Handling
 
-### Missing `platform-cisco-8000` Access
+### Missing `vendor-platform-layer` Access
 - Docker builds succeed with warning about missing platform module
 - Device configurations limited to community-contributed platforms
 - Build produces partial image suitable for validation, not deployment
@@ -532,9 +532,9 @@ The new build structure requires updates to CI/CD pipelines to support the restr
 ### `cisco.ini`
 ```ini
 [module]
-url = https://github.com/Cisco-8000-sonic/platform-cisco-8000.git
+url = <vendor-platform-layer-repository-url>
 ref = master
-target_path = platform/cisco/platform-cisco-8000
+target_path = platform/cisco/vendor-platform-layer
 ```
 
 ### `versions.mk`
@@ -566,7 +566,7 @@ export CISCO_Q200_SILICON_ONE_VERSION := 24.7.3000.41-sai-1.13.0-bullseye-87bc6e
 export CISCO_Q200_VALIDATION_PKG_VERSION := 24.7.3000.41
 ```
 
-Each SONiC stream can maintain independent versions while sharing the same `platform-cisco-8000` branch.
+Each SONiC stream can maintain independent versions while sharing the same `vendor-platform-layer` branch.
 
 Code committed to Sonic-buildimage community repository should contains only public released artifacts and ASICs.
 Internal branches may have local modified versions based on stream requirement.

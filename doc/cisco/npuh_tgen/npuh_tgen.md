@@ -185,8 +185,8 @@ Not applicable
 
 ## References
 
-- [code-commit1](https://wwwin-github.cisco.com/whitebox/platform-cisco-8000/pull/2906)
-- [code-commit1](https://wwwin-github.cisco.com/whitebox/platform-cisco-8000/pull/3015)
+- Vendor platform-layer implementation review 1 (internal)
+- Vendor platform-layer implementation review 2 (internal)
 - [Automation](https://wwwin-github.cisco.com/whitebox/sonic-test/pull/1243)
 
 <!-- TOC --><a name="scale"></a>
@@ -244,5 +244,4 @@ Not applicable
 - Conduct further research on how XR uses similar features and ensure proper documentation is available.
 
 -  Check with  SDK team on G200 limitations for RAW mode  and counter support
-
 

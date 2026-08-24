@@ -147,7 +147,7 @@ Port: 0/0  Endpoint: SUPERVISOR0  Timestamp: 1774994375
 
 #### Summary of Changes
 
-The code changes for the above are primarily in platform-cisco-8000 and cisco-wb-bsp. PID-specific connectivity mapping for the ethernet switch is in hardware.yaml. The monitor is launched by platform-ethswitch.service, and the legacy shell script is deprecated. New platform CLIs provide endpoint-aware status and statistics, with an on-demand refresh via Redis request/response.
+The code changes for the above are primarily in the vendor platform and board-support layers. PID-specific connectivity mapping for the ethernet switch is in hardware.yaml. The monitor is launched by platform-ethswitch.service, and the legacy shell script is deprecated. New platform CLIs provide endpoint-aware status and statistics, with an on-demand refresh via Redis request/response.
 
 ### Testing Requirements/Design  
 

@@ -464,11 +464,11 @@ actions:
     local_actions:                        # Optional: Actions scheduled asynchronously by DLDD
       wait_period: 60                     # Required if local_actions: Nonblocking wait before secondary check and further escalation (seconds)
       action_list:                        # Required if local_actions: Vendor defined method calls to execute on action worker context
-        - action: 
+        - action:
             type: 'dse'
             command: 'PSU:reset_output_power()'
             timeout: 120
-        - action: 
+        - action:
             type: 'dse'
             command: 'PSU:clear_faults()'
             timeout: 120

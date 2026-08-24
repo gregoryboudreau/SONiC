@@ -298,7 +298,7 @@ online_diag_start_delay: 200 >>> It is to wait for certian time after bring up t
 - https://cto-github.cisco.com/Leaba/sdk/pull/67642
 - https://cto-github.cisco.com/Leaba/sdk/pull/68232
 - https://cto-github.cisco.com/Leaba/sdk/pull/73424
-- https://wwwin-github.cisco.com/whitebox/platform-cisco-8000/pull/3753
+- Vendor platform-layer implementation review (internal)
 
 
 # 7 Management CLI

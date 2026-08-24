@@ -91,7 +91,7 @@ Out of scope:
 
 `s1-cli-sonic` is the host-side entry point for accessing the Silicon One SDK CLI server. The current implementation first tries to run `/usr/bin/app_cli_client` directly on the host. If that path fails, it falls back to executing `app_cli_client` inside the `syncd` container with `docker exec`.
 
-Evidence from the current `s1-cli-sonic` script in `whitebox/platform-cisco-8000`, path `sonic-platform-modules-cisco/cisco-8000/usr_bin/s1-cli-sonic`:
+Evidence from the current `s1-cli-sonic` script in the vendor platform layer:
 
 ```bash
 # Single ASIC host probe.
@@ -191,10 +191,10 @@ On single-ASIC systems, the backend uses the flat SDK socket path (same as the c
 
 | Component | Repository | Path | Purpose |
 |---|---|---|---|
-| Host CLI entry | `whitebox/platform-cisco-8000` | `sonic-platform-modules-cisco/cisco-8000/usr_bin/s1-cli-sonic` | Keeps user-facing command and routes to privileged/non-privileged socket |
-| S1 wrapper | `whitebox/platform-cisco-8000` | `sonic-platform-modules-cisco/cisco-8000/overlay/opt/cisco/syncd/bin/s1_sonic_wrapper.py` | Validates and dispatches S1 CLI requests |
-| Socket owner | `whitebox/platform-cisco-8000` | `sonic-platform-modules-cisco/cisco-8000/overlay/opt/cisco/syncd/bin/dshell_client.py` | Creates sockets and owns request loop |
-| Syncd startup | `whitebox/platform-cisco-8000` | `docker-syncd-cisco/start.sh` or existing syncd startup path | Starts `dshell_client` as part of syncd container flow |
+| Host CLI entry | Vendor platform layer | Vendor platform CLI path | Keeps user-facing command and routes to privileged/non-privileged socket |
+| S1 wrapper | Vendor platform layer | Vendor syncd wrapper path | Validates and dispatches S1 CLI requests |
+| Socket owner | Vendor platform layer | Vendor syncd client path | Creates sockets and owns request loop |
+| Syncd startup | Vendor platform layer | Vendor syncd startup path | Starts `dshell_client` as part of syncd container flow |
 | HLD | `whitebox/SONiC` | `doc/cisco/silicon-one-cli/s1-cli-non-sudo-impl.md` | Design review artifact |
 
 ### 6.4 Alternatives considered
@@ -493,7 +493,7 @@ The command policy should be code-owned or installed as a root-owned static poli
 
 ### 9.4 Build and packaging
 
-Expected implementation repository: `whitebox/platform-cisco-8000`.
+Expected implementation location: the vendor platform layer.
 
 Expected packaging changes:
 
@@ -543,7 +543,7 @@ The service must clean up child processes on session exit, EOF, timeout, and bac
 - The initial design supports local host users only. Remote RBAC integration is a future enhancement.
 - If the SDK CLI grammar requires characters outside the initial safe character policy, those characters must be added explicitly with tests.
 - If `dshell_client` or the SDK CLI server is not running, non-sudo access is unavailable and must fail closed.
-- The HLD describes the target design. Exact file paths and function names must be verified against the implementation PR in `whitebox/platform-cisco-8000`.
+- The HLD describes the target design. Exact file paths and function names must be verified against the vendor platform-layer implementation review.
 
 ## 13. Testing Requirements/Design
 
@@ -657,16 +657,14 @@ Throughput, platform readiness, and session/resource resilience.
 | OI1 | Define the initial read-only SDK `show` command policy from SDK CLI documentation and platform validation. | Cisco-8000 platform owner |
 | OI2 | Confirm whether the non-admin socket should be `0666` or restricted to a TAC/operator Linux group. | Platform/security owners |
 | OI3 | Verify Linux peer credential behavior for host users connecting to AF_UNIX sockets served from inside `syncd`. | Platform owner |
-| OI4 | Confirm exact implementation paths and function names in the `platform-cisco-8000` implementation PR. | Implementation owner |
+| OI4 | Confirm exact implementation paths and function names in the vendor platform-layer implementation review. | Implementation owner |
 | OI5 | Add unit tests for command parser, role policy, and malformed input handling. | Implementation owner |
 | OI6 | Add sonic-mgmt or platform integration tests for non-sudo interactive and non-interactive flows. | Test owner |
 | OI7 | Document the operational process for adding a new SDK show command to the read-only policy. | Platform owner |
 
 ## References
 
-- `whitebox/platform-cisco-8000`: `sonic-platform-modules-cisco/cisco-8000/usr_bin/s1-cli-sonic`
+- Vendor platform layer: host CLI entry point
 - `whitebox/SONiC`: `doc/guidelines/hld_template.md`
 - https://cto-github.cisco.com/Leaba/sdk/wiki/SDK-CLI-User-Guide
-- https://wwwin-github.cisco.com/whitebox/platform-cisco-8000/pull/4100
-- https://wwwin-github.cisco.com/whitebox/platform-cisco-8000/pull/3346
-- https://wwwin-github.cisco.com/whitebox/platform-cisco-8000/pull/2772
+- Vendor platform-layer implementation reviews (internal)

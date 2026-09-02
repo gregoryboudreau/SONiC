@@ -36,6 +36,9 @@ The service provides:
 | 0.1 | 2025-09-24 | Gregory Boudreau | Initial draft of DLDD HLD |
 | 0.2 | 2026-07-11 | Gregory Boudreau | Consolidated DLDD design and implementation alignment: established exact Pydantic contract selection with signature-carried schema provenance; reconciled runtime architecture, lifecycle, vendor hooks, actions, artifacts, telemetry, CLI, and repository ownership; defined the typed vendor DSE resolution/expand/value/comparator boundary; added per-event cadence, asynchronous collection, priority rechecks, minimal asynchronous-pool performance telemetry, monitor-owned runtime expansion with bootstrap/warmup/stable discovery, restart-safe dynamic-fault reconciliation, retained-inactive fault handling for authoritative DSE removal, warning-only explicit cross-selector mappings, full direct/DSE on-demand execution, and separate unit/integration/on-demand test structures; retained the non-normative vendor-owned platform reference; removed superseded design material; and reserved service diagnostics for abnormal conditions. |
 | 0.3 | 2026-08-18 | Gregory Boudreau | Clarified fault identity and lifecycle, action handling, artifact bounds, rule promotion, and secure remote rule delivery. |
+| 0.4 | 2026-08-25 | Gregory Boudreau | Made routine status, rule, and fault CLI views compact by default while retaining complete diagnostic metadata through explicit detail views. |
+| 0.5 | 2026-08-25 | Gregory Boudreau | Focused test ownership on primary behavior and high-risk contracts; removed any expectation of exhaustive low-risk permutations or coverage-driven cases. |
+| 0.6 | 2026-09-01 | Gregory Boudreau | Classified DLDD as a host-runtime FEATURE so system health checks its systemd unit instead of expecting a Docker container. |
 
 ## Scope
 
@@ -996,12 +999,17 @@ DLDD follows the standard SONiC pattern for service management using the `FEATUR
       "state": "enabled",
       "auto_restart": "enabled",
       "delayed": "true",
+      "runtime_type": "host",
       "has_global_scope": "true",
       "has_per_asic_scope": "false"
     }
   }
 }
 ```
+
+`runtime_type: "host"` keeps DLDD out of container health checks and makes
+system health evaluate `dldd.service` directly. Existing FEATURE entries default
+to the `container` runtime.
 
 DLDD is a global diagnostic host service and should participate in the normal SONiC config reload service sequencing when the system intentionally reloads configuration. During `config reload`, DLDD is restarted through its host systemd unit so it can reconnect to Redis and reload runtime configuration from a clean state. Explicit `systemctl restart dldd` follows the same clean-start behavior: in-memory monitor queues are discarded and broken-rule state is fully reevaluated from the active rules and current sources. Setting `delayed` to `"true"` allows SONiC service management to start DLDD after the reload has reached a stable point, avoiding transient faults caused by partially repopulated Redis state. This deliberate config-reload restart is separate from peer Docker failure handling: a container crash or restart must not stop `dldd.service`.
 
@@ -1116,6 +1124,7 @@ show dldd config
 # Effective configuration and service health
 show dldd config
 show dldd status
+show dldd status --detail
 
 # Complete active rule inventory and runtime health
 show dldd rules
@@ -1138,32 +1147,40 @@ sudo config dldd clear-state
 sudo config dldd clear-state --all
 ```
 
+`show dldd status` defaults to one compact service-health row containing the
+state, heartbeat age, activation result, and rules source.
+`--detail` adds the complete rules-generation metadata, asynchronous-pool
+metrics, broken-rule rows, source status, primary-owned and local-action work,
+and service diagnostics.
+
 `show dldd rules` reads only the daemon-owned STATE_DB snapshot; it does not
 reparse the active YAML or duplicate schema/materialization logic. The default
-view is one row per rule. `--health`, `--component`, and
+view is one row per rule with rule ID, rule, component, health, and active-fault
+count. `--health`, `--component`, and
 `--active-fault/--no-active-fault` may be combined. The component filter
 matches either the rule's component type or a resolved component instance.
-`--detail` adds the bounded per-work-item table and reports when detail was
-truncated.
+`--detail` restores the complete summary columns, adds the bounded per-work-item
+table, and reports when detail was truncated.
 
-`show dldd faults` reads DLDD-owned `FAULT_INFO` rows. `--detail` renders all
-scalar metadata and pretty-prints decoded JSON array/object fields. `--json`
-emits the selected rows as structured JSON with those fields decoded rather
-than exposing Redis hash string encodings. Status and component filters apply
-to both output forms.
+`show dldd faults` reads DLDD-owned `FAULT_INFO` rows. Its default columns are
+component, symptom, status, severity, and last-detection time. `--detail`
+restores the complete fault-summary columns, renders all scalar metadata, and
+pretty-prints decoded JSON array/object fields. `--json` emits the selected rows
+as structured JSON with those fields decoded rather than exposing Redis hash
+string encodings. Status and component filters apply to all output forms.
 
-Every instance-specific `show dldd status` table uses `rule_instance_id` as its
-first identity column, including broken rules, primary-owned work, local-action
-work, and service diagnostics. Rule-level ingestion failures leave that column
-blank because no component instance exists. `show dldd rules --detail` uses the
-same public identity for each work item. No `show dldd` command renders the
-per-event/source correlation key. Local-action timing is rendered in a separate
-table only when action work exists. Full canonical correlation keys remain
-internal runtime and persistence identities.
+Every instance-specific `show dldd status --detail` table uses
+`rule_instance_id` as its first identity column, including broken rules,
+primary-owned work, local-action work, and service diagnostics. Rule-level
+ingestion failures leave that column blank because no component instance exists.
+`show dldd rules --detail` uses the same public identity for each work item. No
+`show dldd` command renders the per-event/source correlation key. Local-action
+timing is rendered in a separate table only when action work exists. Full
+canonical correlation keys remain internal runtime and persistence identities.
 
-The same command renders the six flat asynchronous-pool fields as one compact
-table; it does not add completion counters, queue-class breakdowns, peaks, or
-per-job history:
+The detailed status command renders the six flat asynchronous-pool fields as
+one compact table; it does not add completion counters, queue-class breakdowns,
+peaks, or per-job history:
 
 ```text
 Async collection pool
@@ -1250,7 +1267,7 @@ The runtime is intentionally split along the ownership boundaries shown in Figur
 | `sonic-buildimage` | `src/sonic-yang-models/yang-models/sonic-dldd.yang`, `src/sonic-yang-models/tests/yang_model_tests/tests_config/dldd.json` | CONFIG_DB `DLDD_CONFIG` YANG model and validation fixture |
 | `sonic-buildimage` and platform integration build | `files/build/versions-public/**/versions-py3`, `files/build_templates/sonic_debian_extension.j2` | Generated dependency snapshots, distro `typing_extensions` replacement, and host-image wheel installation; host-services wheel metadata remains the direct dependency authority |
 | `sonic-mgmt-common` | `models/yang/common/openconfig-platform-healthz*.yang`, `translib/pfm_fault.go`, `translib/pfm_fault_test.go` | OpenConfig Healthz models and `FAULT_INFO` to OpenConfig/UMF translation |
-| `sonic-mgmt` | `tests/platform_tests/dldd/test_dldd.py` | On-device feature/service, rules validation, status/fault wire-contract, ownership, restart, activation dry-run, and non-remediating direct/DSE `e2e-execute` qualification |
+| `sonic-mgmt` | `tests/platform_tests/dldd/test_dldd.py` | Read-only on-device FEATURE/systemd and operator-CLI smoke checks, live status/heartbeat, installed-rules health and observed DLDD-owned fault identity through the operator JSON path, activation dry-run, and non-remediating direct/DSE `e2e-execute` qualification; deterministic restart reconciliation remains under `sonic-host-services/tests/dldd/integration/` |
 | `sonic-gnmi` | `gnmi_server/gnoi_healthz.go`, `gnoi_healthz_artifact.go`, `gnoi_healthz_artifact_resolver.go` and tests | gNOI Healthz service and safe DLDD artifact lookup/streaming |
 | `SONiC` | `doc/device_local_diagnosis/device-local-diagnosis-daemon.md`, `vendor-rules-schema-hld.md` | The two authoritative DLDD HLDs: runtime/integration and vendor wire contract/validation respectively |
 
@@ -1613,7 +1630,7 @@ DLDD has exactly three complementary test tiers. They serve different purposes a
 
 ### Tier 1: Build-Time Unit Tests
 
-Unit tests are a mandatory package and image build gate. They cover the public contracts and high-risk paths documented here: normal results, boundary values, invalid input, negative cases, dependency exceptions, timeouts, capacity limits, cleanup, and state transitions. Tests that merely repeat implementation details or exist only to increase a coverage number are not part of the design requirement. DLDD uses each repository's normal test and coverage policy and does not introduce an additional feature-specific percentage gate.
+Unit tests are a mandatory package and image build gate. They cover the public contracts and high-risk paths documented here with representative normal results, security and wire boundaries, primary invalid-input and dependency failures, timeouts or capacity behavior where resource ownership changes, cleanup, and lifecycle state transitions. A public behavior has one clear owning test; equivalent permutations of helpers, types, defaults, or formatting are not required unless they change a security, interoperability, concurrency, persistence, or recovery outcome. Tests that merely repeat implementation details, exercise a low-impact edge with no distinct contract, or exist only to increase a coverage number are not part of the design requirement. DLDD uses each repository's normal test and coverage policy and does not introduce an additional feature-specific percentage gate.
 
 Collected pytest item count is not itself a quality target. Following the established PMON daemon style, unit tests are organized around public behaviors: one test may drive normal, boundary, failure, and recovery states in sequence when they are parts of the same contract, and a small explicit case table may share identical setup and assertions. Independent versioned wire-format or security inputs may retain named parameter rows when their individual identity materially improves CI diagnosis. Shared rule, plan, database, service, and orchestrator construction is commonized through explicit test factories. Large input values require short explicit parameter IDs so collection, JUnit, and CI output remain bounded. One-off boundary modules and copied fixtures should be folded into the behavior contract that owns them when that can be done without weakening meaningful assertions.
 
@@ -1625,17 +1642,19 @@ The vendor platform package runs its focused DSE component tests unless `DEB_BUI
 
 **Adapter Testing with Mocked Libraries**:
 
-Each adapter type (Redis, Platform API, I2C, CLI, sysfs, File) requires comprehensive unit tests with mocked underlying libraries to validate the adapter interface implementation without hardware dependencies.
+Each adapter type (Redis, Platform API, I2C, CLI, sysfs, File) requires focused unit tests with mocked underlying libraries to validate its representative success path and primary failure behavior without hardware dependencies.
 
 All adapters must pass conformance tests for the `DataSourceAdapter` interface using mock data sources. Tests verify that `validate()` rejects invalid configuration without source access, `get_value()` returns the raw transport value, `get_evaluator()` returns the static mapping or adapts the typed `ResolvedEvaluation` returned by a DSE comparison handle's `get_comparator()`, `run_evaluation()` returns the correct boolean, and `collect()` performs normalization and returns a typed `EvaluationResult` while converting source, collection, and evaluation exceptions appropriately.
 
 ### Tier 2: Runtime Integration Tests
 
-Integration tests validate the complete rule execution pipeline from process startup and rule ingestion through monitor scheduling, DSE expansion, collection, comparison, correlation, action/recheck orchestration, persistence, fault/status publication, restart, and orderly shutdown. They use the real DLDD service objects, threads, queues, worker pools, lifecycle manager, and serializers with a Redis-accurate fake State DB plus controlled fake hardware/platform sources. Tests must generate synthetic healthy, matching, clearing, unavailable, and malformed observations and assert complete externally visible results rather than isolated helper calls. Successful fault detection, fake fault generation, recovery, and every documented error-handling/fallback path are required.
+Integration tests validate the complete rule execution pipeline from process startup and rule ingestion through monitor scheduling, DSE expansion, collection, comparison, correlation, action/recheck orchestration, persistence, fault/status publication, restart, and orderly shutdown. They use the real DLDD service objects, threads, queues, worker pools, lifecycle manager, and serializers with a Redis-accurate fake State DB plus controlled fake hardware/platform sources. Tests must generate synthetic healthy, matching, clearing, unavailable, and malformed observations and assert complete externally visible results rather than isolated helper calls. Successful fault detection, fake fault generation, recovery, and representative primary error-handling/fallback paths are required; unit tests own lower-level permutations that do not change the integrated lifecycle outcome.
 
 The deterministic common-service harness lives under `sonic-host-services/tests/dldd/integration/` and is marked `dldd_integration`, so package unit runs do not start threaded lifecycle tests. `make -C tests/dldd integration` runs this tier. Shared Redis-accurate behavior, locking, and controlled read/write failures are provided by `tests/dldd_fakes.py`; integration-only platform, source, configuration, and service fixtures stay in `tests/dldd/integration/conftest.py`.
 
 The integration suite must test both startup cases that look superficially similar: with no candidate file at any configured path, DLDD exits cleanly with status 0 and starts no monitor work; with at least one present but invalid candidate and no valid fallback, activation remains a failure and follows the documented `BROKEN|FATAL` recovery path.
+
+The scenario catalog below defines aggregate Tier-1 and Tier-2 acceptance ownership. Tier 2 keeps one representative for each distinct end-to-end lifecycle—startup/fallback, match/clear, action/recheck, source recovery, publication failure, static and dynamic restart reconciliation, and shutdown. Tier 1 may own additional semantic variants such as alternate stale-generation fields, expected-maintenance classification, or authoritative versus non-authoritative discovery results when those variants reuse the same integrated lifecycle and publication path.
 
 **Healthy System Testing**: Load a rules file with multiple rules across different data sources (Redis, Platform API, I2C, CLI, sysfs, File) and inject synthetic data that does not violate any conditions. Verify that `DLDD_STATUS|process_state` shows `state: OK` with empty `broken_rules` array, no fault entries are published to the `FAULT_INFO` table, and the heartbeat TTL refreshes comfortably before the 120-second expiry window.
 
@@ -1643,9 +1662,9 @@ The integration suite must test both startup cases that look superficially simil
 
 **Monitor Plan Testing**: Build a monitor plan with multiple correlation keys assigned to the same monitor. Verify that `items_by_key` is not mutated when one key transitions through `READY`, `COLLECTING`, `IN_FLIGHT`, `HELD_BY_PRIMARY`, `RECHECK_REQUESTED`, and back to `READY`; only `state_by_key` changes. Verify that control commands with stale `plan_generation` or stale work-state generation are rejected and acknowledged without changing the current key state.
 
-**Operator Rule-Instance Status Testing**: Exercise a normal monitor-to-primary `IN_FLIGHT` handoff at the instant a 30-second heartbeat snapshot is built and verify it is omitted from `inflight_fault_evidence`; otherwise a sub-second transition would appear stuck until the next heartbeat. Verify intentional `HELD_BY_PRIMARY` and `RECHECK_REQUESTED` work is published with `rule_instance_id` formatted as `<rule_id>@<component_name>` plus structured rule/event/component identity, that the same logical rule/component instance retains the same public identity across contributing events and sources, and that local-action details are rendered separately. Verify runtime broken-rule rows, work-item detail, lease-expiry diagnostics, and processing-error diagnostics use the same public identity when an instance is resolvable; ingestion-only and service-wide records omit it. Assert that no published operator record and no `show dldd` table exposes a per-event/source correlation key.
+**Operator Rule-Instance Status Testing**: Exercise a normal monitor-to-primary `IN_FLIGHT` handoff at the instant a 30-second heartbeat snapshot is built and verify it is omitted from `inflight_fault_evidence`; otherwise a sub-second transition would appear stuck until the next heartbeat. Verify the default status command remains one compact service-health row, while `show dldd status --detail` renders the complete diagnostic tables. Verify intentional `HELD_BY_PRIMARY` and `RECHECK_REQUESTED` work is published with `rule_instance_id` formatted as `<rule_id>@<component_name>` plus structured rule/event/component identity, that the same logical rule/component instance retains the same public identity across contributing events and sources, and that local-action details are rendered separately. Verify runtime broken-rule rows, work-item detail, lease-expiry diagnostics, and processing-error diagnostics use the same public identity when an instance is resolvable; ingestion-only and service-wide records omit it. Assert that no published operator record and no `show dldd` table exposes a per-event/source correlation key.
 
-**Async Event Collection Testing**: Verify that a blocking `async: true` event does not delay inline or other asynchronous work items, only one job per correlation key can be outstanding, and worker threads never mutate monitor state or enqueue primary evidence directly. Exercise shared pool saturation and confirm rejected submissions remain due without incrementing attempts or failures. Fill the 248 normal waiting slots while all eight workers are busy, then verify one of the eight reserved waiting slots accepts an async `RECHECK_ONCE` and executes it before older normal queued jobs while preserving FIFO ordering among equal-priority jobs. Verify async match, no-match, source recovery, collection error, evaluation error, and `RECHECK_ONCE` results use the same evidence and command path as inline collection. Confirm a delayed or queued job coalesces missed cadence intervals, pool shutdown cannot block service exit, and vendor adapters/hooks are opted in only when concurrent single-item calls are safe and their underlying operations are time-bounded. Verify the six flat async-pool telemetry fields report the configured worker count, instantaneous busy/queued counts, and service-lifetime queue-latency, execution-time, and time-weighted utilization averages; confirm zero-work and restart-reset behavior and the compact `show dldd status` rendering.
+**Async Event Collection Testing**: Verify that a blocking `async: true` event does not delay inline or other asynchronous work items, only one job per correlation key can be outstanding, and worker threads never mutate monitor state or enqueue primary evidence directly. Exercise shared pool saturation and confirm rejected submissions remain due without incrementing attempts or failures. Fill the 248 normal waiting slots while all eight workers are busy, then verify one of the eight reserved waiting slots accepts an async `RECHECK_ONCE` and executes it before older normal queued jobs while preserving FIFO ordering among equal-priority jobs. Verify async match, no-match, source recovery, collection error, evaluation error, and `RECHECK_ONCE` results use the same evidence and command path as inline collection. Confirm a delayed or queued job coalesces missed cadence intervals, pool shutdown cannot block service exit, and vendor adapters/hooks are opted in only when concurrent single-item calls are safe and their underlying operations are time-bounded. Verify the six flat async-pool telemetry fields report the configured worker count, instantaneous busy/queued counts, and service-lifetime queue-latency, execution-time, and time-weighted utilization averages; confirm zero-work and restart-reset behavior and the compact asynchronous-pool table in `show dldd status --detail`.
 
 **Action Lifecycle Testing**: Deploy a rule with `local_actions.wait_period` and hold the fault condition active across multiple monitor polling intervals. Verify that DLDD runs the local action sequence once for the candidate fault lifetime, sets `local_action_state` to `RUNNING` and then `WAITING_FOR_RECHECK` in `DLDD_STATUS|process_state.inflight_fault_evidence`, holds the affected correlation key or multi-event contributing keys out of normal polling with explicit `hold_deadline` values, and does not publish `FAULT_INFO` while local action state is in progress. Verify success plus validation, execution, capacity, and timeout failure paths; the first failed action must stop later actions without skipping artifact triggering, `wait_period`, or recheck. Verify that rule-defined Healthz logs and queries are triggered from the local action path, that a Healthz artifact identifier is attached to `FAULT_INFO` when log collection is requested, and that artifact completion or failure does not block action result, recheck, or `FAULT_INFO` publication. After `wait_period`, verify that the primary thread sends the required `RECHECK_ONCE` requests to evaluate the full per-instance signature, the monitor returns match or clear results, and repeated matches do not start another identical local action sequence unless the fault first transitions to `INACTIVE` and then becomes `ACTIVE` again. If the recheck clears, verify that `FAULT_INFO` is published as `INACTIVE` with final local action state (`COMPLETED` or `FAILED`) and recovery metadata. If the recheck still matches, verify that `FAULT_INFO` is published as `ACTIVE` with final local action state and remote remediation recommendations. Also verify generic lease recovery by withholding the first primary command past `fault_evidence_ack_timeout`, and separately verify intentional hold recovery by allowing an explicit `hold_deadline` to expire.
 
@@ -1671,7 +1690,7 @@ The integration suite must test both startup cases that look superficially simil
 
 #### Platform-Backed Integration
 
-The SONiC management (`sonic-mgmt`) framework supplies read-only platform-backed acceptance using the rules and DSE configuration installed on actual hardware. Its activation dry-run verifies that DSE references resolve to valid typed direct results or trusted runtime handles without source access. Its non-remediating `e2e-execute` case then expands every installed runtime DSE source, requires at least one discovered instance for each runtime template, calls current source/comparison functions for every instance, accepts DSE references that legitimately resolve to direct typed sources, and checks direct and DSE-backed rule outcomes through the same command. The case skips only when the selected rules generation has no DSE-backed source event; malformed rules, empty applicable runtime expansion, source/comparison errors, or missing event/rule outcomes fail.
+The SONiC management (`sonic-mgmt`) framework supplies read-only platform-backed acceptance using the rules and DSE configuration installed on actual hardware. Its activation dry-run verifies that DSE references resolve to valid typed direct results or trusted runtime handles without source access. Its non-remediating `e2e-execute` case executes every installed direct event, expands every installed runtime DSE source, requires at least one discovered instance for each runtime template, calls current source/comparison functions for every instance, accepts DSE references that legitimately resolve to direct typed sources, and checks direct and DSE-backed rule outcomes through the same command. DSE-specific assertions are conditional when the selected generation has no DSE-backed source event; malformed rules, empty applicable runtime expansion, source/comparison errors, or missing event/rule outcomes fail.
 
 The generic on-device suite does not mutate hardware inventory or deliberately make a production source unavailable. Bootstrap/warmup/stable transitions, authoritative and non-authoritative inventory changes, source absence, restart reconciliation, and direct-versus-DSE lifecycle equivalence are deterministic Tier-2 service-integration cases under `sonic-host-services/tests/dldd/integration/`. A vendor may add controlled hardware-lab variants when its platform can safely inject those transitions, but such optional destructive or topology-specific cases do not replace the common integration gate or the read-only platform qualification above.
 

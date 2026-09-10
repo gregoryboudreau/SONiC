@@ -750,7 +750,7 @@ The monitor invokes runtime handles only; typed direct results have already join
 | `get_value` | Monitor or async collection worker, every event sample/recheck | Raw source value | Read only the selected binding |
 | `get_comparator` | Same collection job, every event sample/recheck | `ResolvedEvaluation` | Refresh expected value/operator or construct a trusted comparator |
 | `resolve_action` / `resolve_query` | Activation thread | `ResolvedCommand` | Bind an executor without invoking it |
-| `ResolvedCommand.executor` | Action or artifact worker at the rule-defined runtime point | Operation-specific result | Execute the immutable materialized operation |
+| `ResolvedCommand.executor` | Action or artifact worker at the rule-defined runtime point | Operation-specific result; actions may return bounded-capture `ActionOutput` | Execute the immutable materialized operation |
 
 This split allows a vendor DSE source to discover instances periodically while reading fast-changing values and thresholds every event sample. For example, a platform's abstract `current*` selector may use a private STATE_DB expansion handler every five minutes once stable, while `get_value()` rereads `current` and `get_high_threshold()` rereads `high_threshold` every five-second sample. Direct Redis paths likewise query the configured source on every sample; a direct value is never cached merely because its rule was materialized.
 

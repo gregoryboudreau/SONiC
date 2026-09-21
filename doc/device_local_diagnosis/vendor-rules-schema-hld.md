@@ -34,7 +34,7 @@ The schema is designed to be:
 | 0.3 | 2026-08-18 | Gregory Boudreau | Clarified action sequencing, direct-I2C expansion, and artifact-capacity behavior. |
 | 0.4 | 2026-08-25 | Gregory Boudreau | Focused schema tests on representative wire behavior and security boundaries rather than exhaustive low-risk permutations or coverage targets. |
 | 0.5 | 2026-09-03 | Gregory Boudreau | Made activation validation atomic, made missing installed hooks file-fatal, moved discovery cadence into common DLDD, separated action completion from recovery success, and reduced artifact ownership to trigger plus reference publication. |
-| 0.6 | 2026-09-20 | Gregory Boudreau | Clarified candidate-wide validation failures and documented deterministic normalization of configured static-log patterns before artifact collection. |
+| 0.6 | 2026-09-20 | Gregory Boudreau | Clarified candidate-wide validation failures, aligned the per-signature event limit with the 999 unique event IDs, and documented deterministic normalization of configured static-log patterns before artifact collection. |
 
 ## Document Authority
 
@@ -188,7 +188,7 @@ conditions:
 |-------|------|----------|-------------|--------------|----------|
 | `logic` | String | Yes | Boolean expression defining how active fault events are combined; bounded to 16,384 characters, 4,096 tokens, and nesting depth 64 | Boolean operators: `AND`, `OR` with event IDs | `"1 AND 2"`, `"1 OR (2 AND 3)"` |
 | `logic_lookback_time` | Integer | Yes | Maximum age in seconds between active event matches used for logic correlation. Zero disables match-age filtering and evaluates only the current active/clear state of each event. | 0-86400 (0=current active state, 86400=24 hours) | `60` (1 minute window) |
-| `events` | List | Yes | Array of event definitions that can trigger the fault | 1-1000 events | See Event Definition below |
+| `events` | List | Yes | Array of event definitions that can trigger the fault | 1-999 events | See Event Definition below |
 
 #### Logic Expression Rules
 - **Event References**: Use numeric IDs that match event `id` fields. Each referenced event represents a positive fault predicate.

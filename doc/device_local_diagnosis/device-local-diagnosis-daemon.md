@@ -46,6 +46,7 @@ The service provides:
 | 1.1 | 2026-09-28 | Gregory Boudreau | Assigned generic Healthz event, aggregate, artifact packaging/storage, and gNOI service ownership to host Healthz; DLDD retains fault reconciliation, rule queries, and concrete-file staging through reserve/submit. |
 | 1.2 | 2026-09-28 | Gregory Boudreau | Kept only a scalar Healthz artifact ID in FAULT_INFO, removed persisted transition replay state and sidecars, and specified durable reporting of unrecoverable stream gaps. |
 | 1.3 | 2026-10-08 | Gregory Boudreau | Rechecked the independent Healthz boundary against pinned/current upstream; aligned archive reclamation and publication/artifact safety contracts with final qualification. |
+| 1.4 | 2026-10-30 | Gregory Boudreau | Added systemd resource budgets and documented service crash recovery, cgroup cleanup, and the limits of host-process containment. |
 
 ## Scope
 
@@ -910,6 +911,82 @@ The service should be integrated with SONiC service management as a host service
 - Non-database peer service or container failures are treated as source-specific runtime failures. For example, if a Redis table is temporarily unavailable because a producer container restarted, only rules that depend on that Redis source should enter unavailable/degraded state according to DLDD thresholds.
 - A deliberate `config reload`, feature disable, reboot, or operator service action may stop or restart DLDD according to the lifecycle matrix below; peer container crashes must not.
 
+### Resource Budgets
+
+The packaged `dldd.service` applies the following defaults to the daemon and its
+normal child processes in the same systemd cgroup. CPU, memory, and task
+accounting are enabled. Full memory-pressure, swap, and group-OOM behavior
+requires the corresponding cgroup-v2 controllers on the target image.
+
+| Setting | Default | Effect |
+| --- | --- | --- |
+| `CPUQuota` | `100%` | Aggregate CPU-time ceiling equivalent to one logical CPU, not all host CPUs. |
+| `CPUWeight` | `10` | Lower relative CPU share under contention; not a percentage or a reservation. |
+| `MemoryHigh` | `256M` | Begin aggressive reclaim/throttling when the unit exceeds 256 MiB. |
+| `MemoryMax` | `512M` | Hard backstop for cgroup-accounted memory. |
+| `MemorySwapMax` | `0` | Disallow swap consumption by the unit. |
+| `TasksMax` | `128` | Bound the combined number of threads and processes in the unit. |
+| `LimitNOFILE` | `1024` | Per-process open-file-descriptor limit. |
+
+The zero-swap default prevents diagnostic workloads from adding swap I/O and
+long stalls under memory pressure. It applies only to this unit, not to host
+swap globally. The tradeoff is an earlier DLDD-local OOM/restart rather than
+additional swap headroom. It is independent of the RAM ceiling; a platform can
+qualify a bounded swap allowance through a systemd drop-in. On a host without
+swap, this setting has no additional effect.
+
+CPU affinity is not set: pinning restricts where a process runs, but does not
+reserve a CPU exclusively or replace a CPU-time limit. Platform/deployment
+overrides use standard systemd drop-ins, not vendor rule fields or `DLDD_CONFIG`.
+Qualify each profile against representative inventory, polling cadence, and
+concurrent vendor actions before production use. A vendor tool with a larger
+legitimate footprint needs an explicit measured override. These defaults are
+budgets, not a claim that all platforms or workloads have been qualified.
+
+Operators can inspect effective limits and usage with
+`systemctl show dldd.service -p CPUQuotaPerSecUSec -p CPUUsageNSec -p MemoryHigh -p MemoryMax -p MemorySwapMax -p MemoryCurrent -p TasksMax -p TasksCurrent`.
+`CPUUsageNSec` is cumulative CPU time, so utilization requires two samples and
+their elapsed time. Accounting does not itself raise a resource alarm. FEATURE
+health checks service activity; the 30-second process telemetry refresh and its
+120-second TTL are separate liveness signals, not an execution watchdog.
+
+### Service Failure Containment and Recovery
+
+DLDD is a separate host process, not part of PMON or another daemon's address
+space. Ordinary DLDD process faults therefore do not directly crash those peer
+processes. Its unit dependencies follow the normal SONiC lifecycle: stopping a
+required database service or `sonic.target` can stop DLDD, but a DLDD crash does
+not itself request that those dependencies stop.
+
+| Failure | Handling |
+| --- | --- |
+| A source, evaluator, or local action raises a runtime exception | Isolate/report the affected execution through existing rule/source diagnostics; retain local-action wait/recheck semantics. |
+| A monitor thread exits unexpectedly | The primary recreates that monitor with its existing plan and records a service diagnostic. |
+| The daemon exits non-zero or is terminated by an unexpected fatal signal, including a native-hook crash | Systemd cleans up the unit and applies `Restart=on-failure` after `RestartSec=10`; FEATURE's `auto_restart` drop-in remains authoritative. |
+| The unit cannot reclaim enough memory below `MemoryMax` | Cgroup OOM handling is confined to the affected unit; `OOMPolicy=kill` treats its processes as one workload rather than leaving a partially killed daemon. The normal restart policy then applies. |
+| Stop/restart leaves threads or command children running | `KillMode=control-group` targets the unit's processes; `TimeoutStopSec=30` bounds the graceful stop phase before `SendSIGKILL=yes` forces remaining killable processes to exit. |
+
+The packaged unit sets `FailureAction=none` and `StartLimitAction=none`: a DLDD
+failure or exhausted systemd start limit must not trigger a host reboot,
+power-off, or another unit through these actions. Existing manager start-rate
+policy still applies. Unit cleanup is not a per-command timeout or a rollback
+of hardware changes. Recovery uses the existing active rules and retained-fault
+reconciliation; runtime failures do not roll back to an older rules generation.
+Service failure diagnostics belong in systemd/journald and DLDD process status,
+not fabricated hardware `FAULT_INFO` records. Native crash dumps follow the
+host's existing core-collection and retention policy; the resource profile does
+not establish a separate DLDD core-storage quota.
+
+This is resource and process-failure containment, not a security sandbox or an
+absolute guarantee against wider effects. Trusted hooks still have the host
+permissions needed for device access. Privileged commands, shared SDK/driver
+state, kernel faults, and external work outside the cgroup can affect the host.
+A Python timeout cannot forcibly stop an in-process vendor thread; a thread
+that remains alive but is stuck is not repaired by monitor liveness checks.
+No watchdog or universal subprocess isolation is implied. Such hooks require
+their own bounded operation or a suitable trusted helper-process boundary.
+Uninterruptible kernel work may also outlast userspace stop deadlines.
+
 ### Enable/Disable Service
 
 DLDD follows the standard SONiC pattern for service management using the `FEATURE` table in CONFIG_DB. This ensures consistent enable/disable behavior with other SONiC services while keeping DLDD outside Docker and PMON process supervision.
@@ -1585,6 +1662,8 @@ Tier 2 keeps one representative for each distinct end-to-end lifecycle. Tier 1 a
 **Operator State Reset Testing**: Verify default `config dldd clear-state` stops and restarts DLDD only when active, removes local broken-rule state and daemon status/rule keys, preserves rules/configuration and `FAULT_INFO`, and causes DLDD startup reconciliation of retained active faults without Healthz replay. Verify `--all` emits a new explicit inactive transition for each active DLDD source before removing only DLDD-owned `FAULT_INFO` rows and legacy DLDD archive files; retained inactive rows are removed without replay. A transition publication failure must leave its active fault row in place. Verify no old archive is re-advertised and that unrelated producer rows, generic Healthz archives/events/acknowledgement, and configuration/rules files are preserved.
 
 **Service-Level State Testing**: Validate service-level BROKEN|FATAL state by loading a rules file with multiple rules and simulating failures that cause enough unique rule IDs to break to exceed default `broken_rules_max_threshold` (default: 5). Verify that multiple broken work keys from one high-fanout rule count once, `process_state` transitions to `state: BROKEN|FATAL` only when the unique broken rule-ID count is greater than the configured threshold, the service continues running but publishes critical state to the controller, and all broken records are listed with diagnostics in the `process_state.broken_rules` array.
+
+**Resource and Process-Failure Testing**: Check the installed unit's effective CPU, memory, task, OOM, cleanup, and failure-action settings, including platform drop-ins. Qualify normal and peak inventory/action load against the configured profile. In an explicitly authorized disposable lab unit, inject CPU pressure, scoped memory/task exhaustion, a fatal process signal, and a lingering child; verify bounded resource use, unit-local cleanup, restart/reconciliation behavior, and unchanged unrelated service lifetimes. Record relevant control/data-plane health and the host core-retention behavior. These are distinct failure-boundary tests, not coverage permutations. Source-level unit tests do not prove kernel enforcement or live forwarding isolation.
 
 **Configuration Error Handling**: Use representative malformed syntax, exact-schema, semantic, and missing installed-hook cases to verify the complete file is rejected with bounded diagnostics and no partial plan. Separately verify that post-activation get, compare, expansion, and action exceptions remain localized and contribute to process exception counts.
 
